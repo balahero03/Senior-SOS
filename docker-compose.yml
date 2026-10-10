@@ -1,0 +1,26 @@
+# docker-compose.yml
+# Local development stack — starts PostgreSQL only.
+# Add MongoDB and Neo4j when those features are built.
+# Start with: docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: seniorsos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: seniorsos_user
+      POSTGRES_PASSWORD: seniorsos_pass
+      POSTGRES_DB: seniorsos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seniorsos_user -d seniorsos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

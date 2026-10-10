@@ -1,0 +1,69 @@
+// backend/src/config/index.js
+// Reads and validates all environment variables at startup.
+// The application fails fast with a clear message if required values are missing.
+// Never hard-code secrets here — they must come from .env / environment.
+
+'use strict';
+
+require('dotenv').config();
+
+/**
+ * Asserts that a required environment variable is set and non-empty.
+ * @param {string} name
+ * @returns {string}
+ */
+function required(name) {
+  const value = process.env[name];
+  if (!value || value.trim() === '') {
+    throw new Error(`[config] Missing required environment variable: ${name}`);
+  }
+  return value.trim();
+}
+
+/**
+ * Returns an optional environment variable or a default.
+ * @param {string} name
+ * @param {string} defaultValue
+ * @returns {string}
+ */
+function optional(name, defaultValue) {
+  const value = process.env[name];
+  return value && value.trim() !== '' ? value.trim() : defaultValue;
+}
+
+const config = {
+  env: optional('NODE_ENV', 'development'),
+  port: parseInt(optional('PORT', '5000'), 10),
+
+  database: {
+    // Full Prisma connection string — required
+    url: required('DATABASE_URL'),
+  },
+
+  jwt: {
+    accessSecret: required('JWT_ACCESS_SECRET'),
+    refreshSecret: required('JWT_REFRESH_SECRET'),
+    accessExpiresIn: optional('JWT_ACCESS_EXPIRES_IN', '15m'),
+    refreshExpiresIn: optional('JWT_REFRESH_EXPIRES_IN', '7d'),
+    // Refresh token TTL in milliseconds (for DB expires_at calculation)
+    refreshTtlMs: parseInt(optional('REFRESH_TOKEN_TTL_MS', String(7 * 24 * 60 * 60 * 1000)), 10),
+  },
+
+  cookie: {
+    // Use true in production (HTTPS only)
+    secure: optional('COOKIE_SECURE', 'false') === 'true',
+    domain: optional('COOKIE_DOMAIN', 'localhost'),
+    // SameSite policy — 'strict' is most secure for same-origin APIs
+    sameSite: optional('COOKIE_SAME_SITE', 'strict'),
+  },
+
+  cors: {
+    // The React dev server origin
+    clientOrigin: optional('CLIENT_ORIGIN', 'http://localhost:5173'),
+  },
+
+  isProduction: optional('NODE_ENV', 'development') === 'production',
+  isDevelopment: optional('NODE_ENV', 'development') === 'development',
+};
+
+module.exports = config;
