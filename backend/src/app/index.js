@@ -23,6 +23,7 @@ const referralRoutes = require('../routes/referralRoutes');
 const communityRoutes = require('../modules/community/routes/community.routes');
 const messagesRoutes = require('../modules/messages/routes/messages.routes');
 const userRoutes = require('../routes/userRoutes');
+const notificationRoutes = require('../routes/notificationRoutes');
 const userController = require('../controllers/userController');
 const { requireAuth } = require('../middleware/auth.middleware');
 
@@ -78,6 +79,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api', communityRoutes);      // /api/posts fallback, other community routes
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
