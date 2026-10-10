@@ -1,0 +1,44 @@
+// frontend/src/features/admin/api.js
+import api from '../../services/api';
+
+/**
+ * Fetch high-level platform stats across users, roles, verifications, and posts.
+ */
+export const getAdminStats = () =>
+  api.get('/admin/stats').then((r) => r.data.data.stats);
+
+/**
+ * Fetch all alumni profiles pending admin verification.
+ */
+export const getPendingVerifications = () =>
+  api.get('/admin/verifications').then((r) => r.data.data.verifications);
+
+/**
+ * Approve or reject an alumni verification application.
+ * @param {string} id - User ID of the alumnus
+ * @param {'APPROVED' | 'REJECTED'} status
+ */
+export const reviewVerification = (id, status) =>
+  api.patch(`/admin/verifications/${id}`, { status }).then((r) => r.data.data);
+
+/**
+ * Fetch paginated and filterable list of users for administration.
+ * @param {object} params - { q, role, page, limit }
+ */
+export const getUsersList = (params = {}) =>
+  api.get('/users', { params }).then((r) => r.data.data);
+
+/**
+ * Update user account status (e.g., ACTIVE or SUSPENDED).
+ * @param {string} id - User ID
+ * @param {'ACTIVE' | 'SUSPENDED'} status
+ */
+export const updateUserStatus = (id, status) =>
+  api.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data.data);
+
+/**
+ * Fetch system audit logs.
+ * @param {object} params - { page, limit }
+ */
+export const getAuditLogs = (params = {}) =>
+  api.get('/admin/audit-logs', { params }).then((r) => r.data.data);

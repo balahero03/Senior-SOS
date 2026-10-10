@@ -13,6 +13,8 @@ import NetworkPage from './features/networking/pages/NetworkPage';
 import MentorshipPage from './features/mentorship/pages/MentorshipPage';
 import ReferralsPage from './features/referrals/pages/ReferralsPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
+import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
+import SettingsPage from './features/settings/pages/SettingsPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
@@ -75,6 +77,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <AdminDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
