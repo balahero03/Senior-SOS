@@ -9,6 +9,7 @@ import FeedPage from './features/community/pages/FeedPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
+import NetworkPage from './features/networking/pages/NetworkPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
@@ -39,6 +40,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DiscoverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/network"
+          element={
+            <ProtectedRoute>
+              <NetworkPage />
             </ProtectedRoute>
           }
         />

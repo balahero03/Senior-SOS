@@ -58,6 +58,13 @@ export default function Navbar() {
             </Link>
 
             <Link
+              to="/network"
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+            >
+              Network
+            </Link>
+
+            <Link
               to="/feed"
               className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
             >
