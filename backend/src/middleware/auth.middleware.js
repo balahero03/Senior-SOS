@@ -61,4 +61,21 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+/**
+ * requireAdmin — checks that the authenticated user has role ADMIN.
+ * Must be used after requireAuth.
+ */
+function requireAdmin(req, res, next) {
+  if (!req.user) {
+    return next(new AppError('Authentication required', 401, 'TOKEN_MISSING'));
+  }
+
+  if (req.user.role !== 'ADMIN') {
+    return next(new AppError('Access denied — admin role required', 403, 'FORBIDDEN'));
+  }
+
+  next();
+}
+
+module.exports = { requireAuth, requireRole, requireAdmin };
+
