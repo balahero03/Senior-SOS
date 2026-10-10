@@ -363,7 +363,7 @@ const addComment = asyncHandler(async (req, res) => {
   if (post.authorId && post.authorId !== authorId) {
     await createNotification({
       recipientId: post.authorId,
-      actorId,
+      actorId: authorId,
       type: 'POST_COMMENT_RECEIVED',
       payload: {
         postId: post._id.toString(),

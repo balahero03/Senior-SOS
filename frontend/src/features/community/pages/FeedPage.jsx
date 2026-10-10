@@ -37,11 +37,15 @@ function PostCard({ post, currentUserId, onReact, onDelete }) {
     if (!commentText.trim()) return;
     setSubmittingComment(true);
     try {
-      const data = await addComment(post._id, commentText.trim());
-      setComments(prev => [...prev, data.comment]);
-      setCommentText('');
-    } catch {
-      // silently fail
+      const res = await addComment(post._id, commentText.trim());
+      const newComment = res?.comment || res;
+      if (newComment) {
+        setComments(prev => [...prev, newComment]);
+        setCommentText('');
+      }
+    } catch (err) {
+      console.error('Failed to add comment:', err);
+      alert(err?.response?.data?.error?.message || 'Failed to post comment');
     } finally {
       setSubmittingComment(false);
     }
@@ -101,17 +105,35 @@ function PostCard({ post, currentUserId, onReact, onDelete }) {
       <div className="flex items-center gap-4 px-5 py-3 border-t border-slate-100">
         <button
           onClick={() => onReact(post._id, 'LIKE')}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors group"
+          className={`flex items-center gap-1.5 text-sm transition-colors group ${
+            post.userReaction === 'LIKE'
+              ? 'text-blue-600 font-semibold'
+              : 'text-slate-500 hover:text-blue-600'
+          }`}
         >
           <span className="text-base group-hover:scale-110 transition-transform">👍</span>
           <span>Like</span>
+          {post.reactions?.LIKE > 0 && (
+            <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-bold ml-0.5">
+              {post.reactions.LIKE}
+            </span>
+          )}
         </button>
         <button
           onClick={() => onReact(post._id, 'HELPFUL')}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600 transition-colors group"
+          className={`flex items-center gap-1.5 text-sm transition-colors group ${
+            post.userReaction === 'HELPFUL'
+              ? 'text-emerald-600 font-semibold'
+              : 'text-slate-500 hover:text-emerald-600'
+          }`}
         >
           <span className="text-base group-hover:scale-110 transition-transform">💡</span>
           <span>Helpful</span>
+          {post.reactions?.HELPFUL > 0 && (
+            <span className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold ml-0.5">
+              {post.reactions.HELPFUL}
+            </span>
+          )}
         </button>
         <button
           onClick={handleToggleComments}
@@ -119,6 +141,11 @@ function PostCard({ post, currentUserId, onReact, onDelete }) {
         >
           <span className="text-base group-hover:scale-110 transition-transform">💬</span>
           <span>{showComments ? 'Hide' : 'Comments'}</span>
+          {(comments.length > 0 || post.commentCount > 0) && (
+            <span className="text-xs bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold ml-0.5">
+              {comments.length || post.commentCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -281,7 +308,18 @@ export default function FeedPage() {
 
   const handleReact = async (postId, type) => {
     try {
-      await reactToPost(postId, type);
+      const data = await reactToPost(postId, type);
+      // data: { action, userReaction, reactionCounts }
+      setPosts(prev =>
+        prev.map(p => {
+          if (p._id !== postId) return p;
+          return {
+            ...p,
+            userReaction: data.userReaction,
+            reactions: data.reactionCounts || p.reactions,
+          };
+        })
+      );
     } catch {
       // silently fail
     }
