@@ -1,7 +1,7 @@
-// frontend/src/components/layout/Navbar.jsx
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
+import NotificationBell from '../../features/notifications/components/NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
@@ -98,6 +98,8 @@ export default function Navbar() {
             >
               Profile
             </Link>
+
+            <NotificationBell />
 
             <button
               onClick={handleLogout}
