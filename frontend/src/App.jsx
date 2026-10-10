@@ -7,6 +7,8 @@ import RegisterPage from './features/auth/pages/RegisterPage';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
 import FeedPage from './features/community/pages/FeedPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
+import ProfilePage from './features/profile/pages/ProfilePage';
+import DiscoverPage from './features/discover/pages/DiscoverPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
@@ -29,6 +31,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/discover"
+          element={
+            <ProtectedRoute>
+              <DiscoverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/:userId"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
