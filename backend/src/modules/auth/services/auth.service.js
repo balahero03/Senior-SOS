@@ -256,10 +256,39 @@ async function logoutAll(userId) {
  */
 async function getMe(userId) {
   const user = await authRepo.findUserById(userId);
+  return sanitiseUser(user);
+}
+
+/**
+
+ * Change user password after verifying the current password.
+ *
+ * @param {string} userId
+ * @param {{ currentPassword: string, newPassword: string }} data
+ */
+async function changePassword(userId, { currentPassword, newPassword }) {
+  if (!currentPassword || !newPassword) {
+    throw new AppError('Current password and new password are required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (newPassword.length < 8) {
+    throw new AppError('New password must be at least 8 characters long', 400, 'VALIDATION_ERROR');
+  }
+
+  const user = await authRepo.findUserById(userId);
   if (!user) {
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
-  return sanitiseUser(user);
+
+  const isCurrentValid = await comparePassword(currentPassword, user.passwordHash);
+  if (!isCurrentValid) {
+    throw new AppError('Current password is incorrect', 400, 'INVALID_CREDENTIALS');
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await authRepo.updateUserPassword(userId, newHash);
+
+  return { message: 'Password updated successfully' };
 }
 
 module.exports = {
@@ -269,5 +298,7 @@ module.exports = {
   logout,
   logoutAll,
   getMe,
+  changePassword,
   verifyAccessToken,
 };
+

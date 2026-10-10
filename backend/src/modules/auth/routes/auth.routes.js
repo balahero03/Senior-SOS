@@ -33,4 +33,8 @@ router.post('/refresh', authController.refresh);
 // Requires a valid access token cookie
 router.get('/me', requireAuth, authController.me);
 
+// POST /api/auth/change-password
+// Requires a valid access token cookie
+router.post('/change-password', requireAuth, authController.changePassword);
+
 module.exports = router;

@@ -245,6 +245,16 @@ async function revokeAllUserRefreshTokens(userId) {
   });
 }
 
+/**
+ * Update a user's hashed password.
+ */
+async function updateUserPassword(userId, passwordHash) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
@@ -256,4 +266,6 @@ module.exports = {
   findRefreshToken,
   revokeRefreshToken,
   revokeAllUserRefreshTokens,
+  updateUserPassword,
 };
+

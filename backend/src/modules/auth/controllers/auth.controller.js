@@ -133,4 +133,15 @@ const me = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, data: { user } });
 });
 
-module.exports = { register, login, logout, refresh, me };
+/**
+ * POST /api/auth/change-password
+ * Body: { currentPassword, newPassword }
+ */
+const changePassword = asyncHandler(async (req, res) => {
+  const userId = req.user.id || req.user.sub;
+  const result = await authService.changePassword(userId, req.body);
+  res.status(200).json({ success: true, message: result.message });
+});
+
+module.exports = { register, login, logout, refresh, me, changePassword };
+
