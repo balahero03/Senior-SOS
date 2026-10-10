@@ -18,6 +18,8 @@ const errorMiddleware = require('../middleware/error.middleware');
 const authRoutes = require('../modules/auth/routes/auth.routes');
 const postRoutes = require('../routes/postRoutes');
 const connectionRoutes = require('../routes/connectionRoutes');
+const mentorshipRoutes = require('../routes/mentorshipRoutes');
+const referralRoutes = require('../routes/referralRoutes');
 const communityRoutes = require('../modules/community/routes/community.routes');
 const messagesRoutes = require('../modules/messages/routes/messages.routes');
 const usersRoutes = require('../modules/users/routes/users.routes');
@@ -69,6 +71,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/connections', connectionRoutes);
+app.use('/api/mentorship', mentorshipRoutes);
+app.use('/api/referrals', referralRoutes);
 app.use('/api', communityRoutes);      // /api/posts fallback, other community routes
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
