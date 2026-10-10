@@ -14,7 +14,9 @@ const AppError = require('../shared/errors/AppError');
  * On failure: 401 via next(AppError).
  */
 function requireAuth(req, res, next) {
-  const token = req.cookies?.accessToken;
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  const token = req.cookies?.accessToken || bearerToken;
 
   if (!token) {
     return next(new AppError('Authentication required — no access token', 401, 'TOKEN_MISSING'));

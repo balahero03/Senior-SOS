@@ -16,6 +16,7 @@ const morgan = require('morgan');
 const config = require('../config');
 const errorMiddleware = require('../middleware/error.middleware');
 const authRoutes = require('../modules/auth/routes/auth.routes');
+const postRoutes = require('../routes/postRoutes');
 const communityRoutes = require('../modules/community/routes/community.routes');
 const messagesRoutes = require('../modules/messages/routes/messages.routes');
 const usersRoutes = require('../modules/users/routes/users.routes');
@@ -65,7 +66,8 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
-app.use('/api', communityRoutes);      // /api/posts, /api/posts/:id/comments, /api/posts/:id/react
+app.use('/api/posts', postRoutes);
+app.use('/api', communityRoutes);      // /api/posts fallback, other community routes
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
 // ─── 404 for unmatched API routes ────────────────────────────────────────────
