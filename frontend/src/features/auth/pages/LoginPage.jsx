@@ -108,7 +108,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={form.email}
                 onChange={handleChange}
-                placeholder="you@college.edu"
+                placeholder="Your college email"
                 className={`input-field ${errors.email ? 'error' : ''}`}
                 aria-describedby={errors.email ? 'email-error' : undefined}
               />

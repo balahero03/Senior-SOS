@@ -239,7 +239,7 @@ export default function RegisterPage() {
               <div>
                 <label htmlFor="reg-name" className="input-label">Full name</label>
                 <input id="reg-name" name="name" type="text" autoComplete="name"
-                  value={form.name} onChange={handleChange} placeholder="Bala Subramaniam"
+                  value={form.name} onChange={handleChange} placeholder="Your name"
                   className={`input-field ${errors.name ? 'error' : ''}`} />
                 <FieldError message={errors.name} />
               </div>
@@ -248,7 +248,7 @@ export default function RegisterPage() {
               <div>
                 <label htmlFor="reg-email" className="input-label">Email address</label>
                 <input id="reg-email" name="email" type="email" autoComplete="email"
-                  value={form.email} onChange={handleChange} placeholder="bala@college.edu"
+                  value={form.email} onChange={handleChange} placeholder="Your college email"
                   className={`input-field ${errors.email ? 'error' : ''}`} />
                 <FieldError message={errors.email} />
               </div>

@@ -39,13 +39,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Only attempt refresh for 401 errors, not for /auth/refresh itself
-    // (avoids infinite loop) and only once per request.
+    // Only attempt refresh for 401 errors, not for /auth/refresh, /auth/login, or /auth/me itself
+    // (prevents infinite refresh and reload loops on public routes like /login)
     if (
       error.response?.status === 401 &&
+      originalRequest &&
       !originalRequest._retried &&
-      !originalRequest.url.includes('/auth/refresh') &&
-      !originalRequest.url.includes('/auth/login')
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/me')
     ) {
       if (isRefreshing) {
         // Queue subsequent 401s while a refresh is in flight
@@ -65,8 +67,10 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        // Redirect to login on refresh failure
-        window.location.href = '/login';
+        // Only redirect if not already on /login or /register
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
