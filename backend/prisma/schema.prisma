@@ -25,18 +25,24 @@ enum UserRole {
   STUDENT
   ALUMNI
   ADMIN
+
+  @@map("user_role")
 }
 
 enum AccountStatus {
   ACTIVE
   SUSPENDED
   DEACTIVATED
+
+  @@map("account_status")
 }
 
 enum VerificationStatus {
   PENDING
   APPROVED
   REJECTED
+
+  @@map("verification_status")
 }
 
 enum RequestStatus {
@@ -44,6 +50,8 @@ enum RequestStatus {
   ACCEPTED
   REJECTED
   CANCELLED
+
+  @@map("request_status")
 }
 
 enum MentorshipStatus {
@@ -52,12 +60,16 @@ enum MentorshipStatus {
   REJECTED
   CANCELLED
   ENDED
+
+  @@map("mentorship_status")
 }
 
 enum MentorshipFrequency {
   ONE_TIME
   WEEKLY
   MONTHLY
+
+  @@map("mentorship_frequency")
 }
 
 enum ReferralStatus {
@@ -68,6 +80,8 @@ enum ReferralStatus {
   INTERVIEW
   COMPLETED
   CANCELLED
+
+  @@map("referral_status")
 }
 
 // ─── Core identity ────────────────────────────────────────────────────────────
