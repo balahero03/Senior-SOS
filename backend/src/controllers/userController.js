@@ -1,0 +1,446 @@
+// backend/src/controllers/userController.js
+// User Profiles & Skill Management Controller for SeniorSOS.
+// Handles lookups for departments, companies, skills, and full user profile CRUD with skill sync.
+
+'use strict';
+
+const { prisma } = require('../database/postgres');
+const asyncHandler = require('../shared/utils/asyncHandler');
+const AppError = require('../shared/errors/AppError');
+
+// ─── Metadata & Lookup Handlers ──────────────────────────────────────────────
+
+/**
+ * GET /api/departments
+ * Returns all departments sorted alphabetically by code.
+ */
+const getDepartments = asyncHandler(async (req, res) => {
+  const departments = await prisma.department.findMany({
+    select: {
+      id: true,
+      code: true,
+      name: true,
+    },
+    orderBy: {
+      code: 'asc',
+    },
+  });
+
+  res.json({
+    success: true,
+    data: { departments },
+  });
+});
+
+/**
+ * GET /api/companies
+ * Returns registered companies (id, name). Supports search query `?q=` filtering by name_key.
+ */
+const getCompanies = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+  const where = {};
+
+  if (q && q.trim()) {
+    const searchKey = q.trim().toLowerCase();
+    where.nameKey = { contains: searchKey };
+  }
+
+  const companies = await prisma.company.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+      nameKey: true,
+    },
+    orderBy: {
+      name: 'asc',
+    },
+    take: 50,
+  });
+
+  res.json({
+    success: true,
+    data: { companies },
+  });
+});
+
+/**
+ * GET /api/skills
+ * Returns skills (id, name). Supports search query `?q=` filtering by name.
+ */
+const getSkills = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+  const where = {};
+
+  if (q && q.trim()) {
+    const searchTerm = q.trim();
+    where.name = { contains: searchTerm, mode: 'insensitive' };
+  }
+
+  const skills = await prisma.skill.findMany({
+    where,
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: 'asc',
+    },
+    take: 50,
+  });
+
+  res.json({
+    success: true,
+    data: { skills },
+  });
+});
+
+// ─── Profile Retrieval & Edit Handlers ───────────────────────────────────────
+
+/**
+ * Helper to determine connection status between current user and target user:
+ * 'SELF' | 'CONNECTED' | 'PENDING_SENT' | 'PENDING_RECEIVED' | 'NONE'
+ */
+async function getConnectionStatus(currentUserId, targetUserId) {
+  if (currentUserId === targetUserId) {
+    return 'SELF';
+  }
+
+  // Check canonical connection
+  const [userA, userB] = currentUserId < targetUserId
+    ? [currentUserId, targetUserId]
+    : [targetUserId, currentUserId];
+
+  const connection = await prisma.connection.findUnique({
+    where: {
+      userA_userB: { userA, userB },
+    },
+  });
+
+  if (connection) {
+    return 'CONNECTED';
+  }
+
+  // Check pending connection request
+  const pendingRequest = await prisma.connectionRequest.findFirst({
+    where: {
+      status: 'PENDING',
+      OR: [
+        { senderId: currentUserId, receiverId: targetUserId },
+        { senderId: targetUserId, receiverId: currentUserId },
+      ],
+    },
+  });
+
+  if (pendingRequest) {
+    return pendingRequest.senderId === currentUserId ? 'PENDING_SENT' : 'PENDING_RECEIVED';
+  }
+
+  return 'NONE';
+}
+
+/**
+ * GET /api/users/:id/profile
+ * Returns detailed user profile with connection status relative to the viewer.
+ */
+const getUserProfile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const currentUserId = req.user.id || req.user.sub;
+
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      academicProfile: {
+        include: {
+          department: {
+            select: { id: true, code: true, name: true },
+          },
+        },
+      },
+      alumniProfile: {
+        include: {
+          company: {
+            select: { id: true, name: true, nameKey: true },
+          },
+        },
+      },
+      userSkills: {
+        include: {
+          skill: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  const connectionStatus = await getConnectionStatus(currentUserId, user.id);
+
+  const formattedSkills = user.userSkills.map((us) => ({
+    skillId: us.skillId,
+    name: us.skill.name,
+    proficiency: us.proficiency,
+  }));
+
+  const responseProfile = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    createdAt: user.createdAt,
+    academicProfile: user.academicProfile
+      ? {
+          departmentId: user.academicProfile.departmentId,
+          departmentCode: user.academicProfile.department?.code || null,
+          departmentName: user.academicProfile.department?.name || null,
+          graduationYear: user.academicProfile.graduationYear,
+          bio: user.academicProfile.bio,
+          careerInterests: user.academicProfile.careerInterests,
+        }
+      : null,
+    alumniProfile:
+      user.role === 'ALUMNI' && user.alumniProfile
+        ? {
+            companyId: user.alumniProfile.companyId,
+            companyName: user.alumniProfile.company?.name || null,
+            designation: user.alumniProfile.designation,
+            experienceYears: user.alumniProfile.experienceYears,
+            verificationStatus: user.alumniProfile.verificationStatus,
+          }
+        : null,
+    skills: formattedSkills,
+    connectionStatus,
+  };
+
+  res.json({
+    success: true,
+    data: { profile: responseProfile },
+  });
+});
+
+/**
+ * PUT /api/users/profile
+ * Updates the authenticated user's profile inside a single Prisma interactive transaction.
+ */
+const updateProfile = asyncHandler(async (req, res) => {
+  const userId = req.user.id || req.user.sub;
+  const {
+    name,
+    departmentId,
+    graduationYear,
+    bio,
+    careerInterests,
+    companyName,
+    designation,
+    experienceYears,
+    skills,
+  } = req.body;
+
+  const existingUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!existingUser) {
+    throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Update name on user if supplied
+    if (name && name.trim()) {
+      await tx.user.update({
+        where: { id: userId },
+        data: { name: name.trim() },
+      });
+    }
+
+    // 2. Upsert academic_profiles
+    if (departmentId || graduationYear || bio !== undefined || careerInterests !== undefined) {
+      const academicData = {};
+      if (bio !== undefined) academicData.bio = bio ? bio.trim() : null;
+      if (careerInterests !== undefined) academicData.careerInterests = careerInterests ? careerInterests.trim() : null;
+      if (graduationYear !== undefined) academicData.graduationYear = parseInt(graduationYear, 10);
+      if (departmentId) academicData.departmentId = departmentId;
+
+      const existingAcademic = await tx.academicProfile.findUnique({
+        where: { userId },
+      });
+
+      if (existingAcademic) {
+        await tx.academicProfile.update({
+          where: { userId },
+          data: academicData,
+        });
+      } else {
+        // Must provide departmentId and graduationYear on initial creation
+        if (!departmentId || !graduationYear) {
+          throw new AppError('departmentId and graduationYear are required to initialize academic profile', 400, 'VALIDATION_ERROR');
+        }
+        await tx.academicProfile.create({
+          data: {
+            userId,
+            departmentId,
+            graduationYear: parseInt(graduationYear, 10),
+            bio: academicData.bio || null,
+            careerInterests: academicData.careerInterests || null,
+          },
+        });
+      }
+    }
+
+    // 3. If ALUMNI: upsert company and alumni_profiles
+    if (existingUser.role === 'ALUMNI') {
+      let resolvedCompanyId = undefined;
+
+      if (companyName && companyName.trim()) {
+        const cleanName = companyName.trim();
+        const nameKey = cleanName.toLowerCase();
+        const comp = await tx.company.upsert({
+          where: { nameKey },
+          update: { name: cleanName },
+          create: { name: cleanName, nameKey },
+        });
+        resolvedCompanyId = comp.id;
+      }
+
+      if (resolvedCompanyId !== undefined || designation !== undefined || experienceYears !== undefined) {
+        const alumniData = {};
+        if (resolvedCompanyId !== undefined) alumniData.companyId = resolvedCompanyId;
+        if (designation !== undefined) alumniData.designation = designation ? designation.trim() : null;
+        if (experienceYears !== undefined) {
+          alumniData.experienceYears = experienceYears !== null ? parseFloat(experienceYears) : null;
+        }
+
+        const existingAlumni = await tx.alumniProfile.findUnique({
+          where: { userId },
+        });
+
+        if (existingAlumni) {
+          await tx.alumniProfile.update({
+            where: { userId },
+            data: alumniData,
+          });
+        } else {
+          await tx.alumniProfile.create({
+            data: {
+              userId,
+              companyId: resolvedCompanyId || null,
+              designation: alumniData.designation || null,
+              experienceYears: alumniData.experienceYears || null,
+            },
+          });
+        }
+      }
+    }
+
+    // 4. Synchronize user_skills
+    if (Array.isArray(skills)) {
+      // Upsert all skill records in `skills`
+      const resolvedSkillEntries = [];
+
+      for (const item of skills) {
+        const rawName = typeof item === 'string' ? item : item?.name;
+        if (!rawName || !rawName.trim()) continue;
+
+        const cleanSkillName = rawName.trim();
+        const skillRecord = await tx.skill.upsert({
+          where: { name: cleanSkillName },
+          update: {},
+          create: { name: cleanSkillName },
+        });
+
+        resolvedSkillEntries.push({
+          userId,
+          skillId: skillRecord.id,
+          proficiency: (typeof item === 'object' && item.proficiency) ? item.proficiency.trim() : null,
+        });
+      }
+
+      // Delete existing user skills
+      await tx.userSkill.deleteMany({
+        where: { userId },
+      });
+
+      // Insert updated skills
+      if (resolvedSkillEntries.length > 0) {
+        for (const entry of resolvedSkillEntries) {
+          await tx.userSkill.create({
+            data: entry,
+          });
+        }
+      }
+    }
+  });
+
+  // Fetch and return the updated profile
+  const updatedUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      status: true,
+      academicProfile: {
+        include: {
+          department: {
+            select: { id: true, code: true, name: true },
+          },
+        },
+      },
+      alumniProfile: {
+        include: {
+          company: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+      userSkills: {
+        include: {
+          skill: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+    },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      message: 'Profile updated successfully',
+      profile: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        academicProfile: updatedUser.academicProfile,
+        alumniProfile: updatedUser.alumniProfile,
+        skills: updatedUser.userSkills.map((us) => ({
+          skillId: us.skillId,
+          name: us.skill.name,
+          proficiency: us.proficiency,
+        })),
+      },
+    },
+  });
+});
+
+module.exports = {
+  getDepartments,
+  getCompanies,
+  getSkills,
+  getUserProfile,
+  updateProfile,
+};
