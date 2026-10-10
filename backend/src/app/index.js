@@ -22,7 +22,9 @@ const mentorshipRoutes = require('../routes/mentorshipRoutes');
 const referralRoutes = require('../routes/referralRoutes');
 const communityRoutes = require('../modules/community/routes/community.routes');
 const messagesRoutes = require('../modules/messages/routes/messages.routes');
-const usersRoutes = require('../modules/users/routes/users.routes');
+const userRoutes = require('../routes/userRoutes');
+const userController = require('../controllers/userController');
+const { requireAuth } = require('../middleware/auth.middleware');
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 
@@ -68,7 +70,10 @@ app.get('/health', (req, res) => {
 // Mount each module router under /api/<module>.
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', usersRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/departments', requireAuth, userController.getDepartments);
+app.use('/api/companies', requireAuth, userController.getCompanies);
+app.use('/api/skills', requireAuth, userController.getSkills);
 app.use('/api/posts', postRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/mentorship', mentorshipRoutes);
