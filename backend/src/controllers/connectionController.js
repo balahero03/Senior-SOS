@@ -8,6 +8,7 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -133,6 +134,17 @@ const sendConnectionRequest = asyncHandler(async (req, res) => {
       receiver: {
         select: { id: true, name: true, role: true },
       },
+    },
+  });
+
+  // Notify receiver of incoming connection request
+  await createNotification({
+    recipientId: targetUserId,
+    actorId: senderId,
+    type: 'CONNECTION_REQUEST_RECEIVED',
+    payload: {
+      requestId: newRequest.id,
+      senderId,
     },
   });
 
@@ -277,6 +289,17 @@ const respondToRequest = asyncHandler(async (req, res) => {
     });
 
     return { updatedRequest, connection };
+  });
+
+  // Notify original requester that their connection request was accepted
+  await createNotification({
+    recipientId: connectionRequest.senderId,
+    actorId: currentUserId,
+    type: 'CONNECTION_REQUEST_ACCEPTED',
+    payload: {
+      requestId,
+      connectionId: `${result.connection.userA}_${result.connection.userB}`,
+    },
   });
 
   res.json({

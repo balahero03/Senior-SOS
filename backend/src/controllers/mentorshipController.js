@@ -7,6 +7,7 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 // Allowed mentorship frequencies
 const VALID_FREQUENCIES = ['ONE_TIME', 'WEEKLY', 'MONTHLY'];
@@ -101,6 +102,18 @@ const requestMentorship = asyncHandler(async (req, res) => {
           },
         },
       },
+    },
+  });
+
+  // Notify mentor of new incoming mentorship request
+  await createNotification({
+    recipientId: mentorId,
+    actorId: menteeId,
+    type: 'MENTORSHIP_REQUEST_RECEIVED',
+    payload: {
+      mentorshipId: request.id,
+      focusArea: request.focusArea,
+      frequency: request.frequency,
     },
   });
 
@@ -275,6 +288,19 @@ const updateMentorshipStatus = asyncHandler(async (req, res) => {
   const updated = await prisma.mentorshipRequest.update({
     where: { id },
     data: updateData,
+  });
+
+  // Notify the other party about the status update
+  const partnerId = isMentor ? mentorship.menteeId : mentorship.mentorId;
+  await createNotification({
+    recipientId: partnerId,
+    actorId: currentUserId,
+    type: 'MENTORSHIP_STATUS_UPDATED',
+    payload: {
+      mentorshipId: id,
+      oldStatus,
+      newStatus: status,
+    },
   });
 
   res.json({

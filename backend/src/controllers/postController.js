@@ -9,6 +9,7 @@ const { Post, Comment, Reaction } = require('../models');
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -357,6 +358,20 @@ const addComment = asyncHandler(async (req, res) => {
     name: 'SSN Member',
     role: req.user.role || 'STUDENT',
   };
+
+  // Notify post author if they are not the one commenting
+  if (post.authorId && post.authorId !== authorId) {
+    await createNotification({
+      recipientId: post.authorId,
+      actorId,
+      type: 'POST_COMMENT_RECEIVED',
+      payload: {
+        postId: post._id.toString(),
+        commentId: comment._id.toString(),
+        contentSnippet: content.trim().substring(0, 100),
+      },
+    });
+  }
 
   res.status(201).json({
     success: true,

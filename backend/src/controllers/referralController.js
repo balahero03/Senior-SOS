@@ -8,6 +8,7 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 // Allowed referral statuses
 const VALID_REFERRAL_STATUSES = [
@@ -167,6 +168,18 @@ const requestReferral = asyncHandler(async (req, res) => {
     return created;
   });
 
+  // Notify alumnus about the new referral request
+  await createNotification({
+    recipientId: alumniId,
+    actorId: studentId,
+    type: 'REFERRAL_REQUEST_RECEIVED',
+    payload: {
+      referralId: referral.id,
+      jobTitle: referral.jobTitle,
+      companyId: referral.companyId,
+    },
+  });
+
   res.status(201).json({
     success: true,
     data: {
@@ -324,6 +337,20 @@ const updateReferralStatus = asyncHandler(async (req, res) => {
     });
 
     return { updated, history };
+  });
+
+  // Notify the other party about the status update
+  const partnerId = isAlumni ? referral.studentId : referral.alumniId;
+  await createNotification({
+    recipientId: partnerId,
+    actorId: currentUserId,
+    type: 'REFERRAL_STATUS_UPDATED',
+    payload: {
+      referralId: id,
+      oldStatus,
+      newStatus: status,
+      jobTitle: referral.jobTitle,
+    },
   });
 
   res.json({
