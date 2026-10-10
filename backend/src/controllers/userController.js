@@ -437,10 +437,237 @@ const updateProfile = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/users
+ * Global user discovery and search hub.
+ * Supports filters: role, departmentId, companyId, skillId, graduationYear, q, verifiedOnly.
+ * Excludes SUSPENDED and DEACTIVATED users.
+ * Respects CONNECTIONS_ONLY privacy settings.
+ * Computes connectionStatus relative to req.user.id.
+ */
+const getUsers = asyncHandler(async (req, res) => {
+  const currentUserId = req.user.id || req.user.sub;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
+  const skip = (page - 1) * limit;
+
+  const {
+    role,
+    departmentId,
+    companyId,
+    skillId,
+    graduationYear,
+    q,
+    verifiedOnly,
+  } = req.query;
+
+  // Base user filter: only ACTIVE users
+  const where = {
+    status: 'ACTIVE',
+  };
+
+  // Role filter: STUDENT | ALUMNI
+  if (role && ['STUDENT', 'ALUMNI'].includes(role)) {
+    where.role = role;
+  }
+
+  // Academic profile filters
+  const academicFilter = {};
+  if (departmentId) {
+    academicFilter.departmentId = departmentId;
+  }
+  if (graduationYear) {
+    const gradYearNum = parseInt(graduationYear, 10);
+    if (!isNaN(gradYearNum)) {
+      academicFilter.graduationYear = gradYearNum;
+    }
+  }
+
+  // Alumni profile filters
+  const alumniFilter = {};
+  if (companyId) {
+    alumniFilter.companyId = companyId;
+  }
+  if (verifiedOnly === 'true') {
+    alumniFilter.verificationStatus = 'APPROVED';
+  }
+
+  // Text search on name or bio
+  if (q && q.trim()) {
+    const searchTerm = q.trim();
+    where.OR = [
+      { name: { contains: searchTerm, mode: 'insensitive' } },
+      { academicProfile: { bio: { contains: searchTerm, mode: 'insensitive' } } },
+    ];
+  }
+
+  // Skill filter
+  if (skillId) {
+    where.userSkills = {
+      some: { skillId },
+    };
+  }
+
+  if (Object.keys(academicFilter).length > 0) {
+    where.academicProfile = {
+      ...(where.academicProfile || {}),
+      ...academicFilter,
+    };
+  }
+
+  if (Object.keys(alumniFilter).length > 0) {
+    where.alumniProfile = {
+      ...(where.alumniProfile || {}),
+      ...alumniFilter,
+    };
+  }
+
+  // Get viewer's active connections for privacy enforcement
+  const myConnections = await prisma.connection.findMany({
+    where: {
+      OR: [{ userA: currentUserId }, { userB: currentUserId }],
+    },
+    select: { userA: true, userB: true },
+  });
+
+  const connectedUserIds = new Set(
+    myConnections.map((c) => (c.userA === currentUserId ? c.userB : c.userA))
+  );
+
+  // Users who have profileVisibility === 'CONNECTIONS_ONLY' and are NOT connected to currentUserId
+  // (and are not the current user) should be excluded from search results.
+  const privateSettings = await prisma.userSettings.findMany({
+    where: {
+      profileVisibility: 'CONNECTIONS_ONLY',
+      userId: {
+        notIn: [currentUserId, ...Array.from(connectedUserIds)],
+      },
+    },
+    select: { userId: true },
+  });
+
+  const hiddenUserIds = privateSettings.map((s) => s.userId);
+  if (hiddenUserIds.length > 0) {
+    where.id = { notIn: hiddenUserIds };
+  }
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        academicProfile: {
+          select: {
+            graduationYear: true,
+            bio: true,
+            department: { select: { id: true, code: true, name: true } },
+          },
+        },
+        alumniProfile: {
+          select: {
+            designation: true,
+            experienceYears: true,
+            verificationStatus: true,
+            company: { select: { id: true, name: true } },
+          },
+        },
+        userSkills: {
+          include: {
+            skill: { select: { id: true, name: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  // Compute connectionStatus for returned users
+  const userIds = users.map((u) => u.id).filter((id) => id !== currentUserId);
+
+  // Fetch pending requests involving currentUserId and any of these users
+  const pendingRequests = await prisma.connectionRequest.findMany({
+    where: {
+      status: 'PENDING',
+      OR: [
+        { senderId: currentUserId, receiverId: { in: userIds } },
+        { senderId: { in: userIds }, receiverId: currentUserId },
+      ],
+    },
+    select: { senderId: true, receiverId: true },
+  });
+
+  const sentPendingSet = new Set(
+    pendingRequests
+      .filter((r) => r.senderId === currentUserId)
+      .map((r) => r.receiverId)
+  );
+  const receivedPendingSet = new Set(
+    pendingRequests
+      .filter((r) => r.receiverId === currentUserId)
+      .map((r) => r.senderId)
+  );
+
+  const formattedUsers = users.map((user) => {
+    let connectionStatus = 'NONE';
+    if (user.id === currentUserId) {
+      connectionStatus = 'SELF';
+    } else if (connectedUserIds.has(user.id)) {
+      connectionStatus = 'CONNECTED';
+    } else if (sentPendingSet.has(user.id)) {
+      connectionStatus = 'PENDING_SENT';
+    } else if (receivedPendingSet.has(user.id)) {
+      connectionStatus = 'PENDING_RECEIVED';
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      status: user.status,
+      department: user.academicProfile?.department?.code || null,
+      departmentName: user.academicProfile?.department?.name || null,
+      graduationYear: user.academicProfile?.graduationYear || null,
+      bio: user.academicProfile?.bio || null,
+      company: user.role === 'ALUMNI' ? user.alumniProfile?.company?.name || null : null,
+      companyId: user.role === 'ALUMNI' ? user.alumniProfile?.company?.id || null : null,
+      designation: user.role === 'ALUMNI' ? user.alumniProfile?.designation || null : null,
+      experienceYears: user.role === 'ALUMNI' && user.alumniProfile?.experienceYears ? Number(user.alumniProfile.experienceYears) : null,
+      verificationStatus: user.role === 'ALUMNI' ? user.alumniProfile?.verificationStatus || null : null,
+      skills: user.userSkills.map((us) => ({
+        skillId: us.skillId,
+        name: us.skill.name,
+        proficiency: us.proficiency,
+      })),
+      connectionStatus,
+    };
+  });
+
+  res.json({
+    success: true,
+    data: {
+      users: formattedUsers,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  });
+});
+
 module.exports = {
   getDepartments,
   getCompanies,
   getSkills,
   getUserProfile,
   updateProfile,
+  getUsers,
 };

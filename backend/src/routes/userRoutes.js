@@ -14,7 +14,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 // ─── User Profile & List Endpoints ───────────────────────────────────────────
-router.get('/', usersController.getUsers);
+router.get('/', userController.getUsers);
 router.put('/profile', userController.updateProfile);
 router.get('/:id/profile', userController.getUserProfile);
 
