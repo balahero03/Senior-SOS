@@ -5,6 +5,8 @@ import useAuthStore from './stores/authStore';
 import LoginPage from './features/auth/pages/LoginPage';
 import RegisterPage from './features/auth/pages/RegisterPage';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
+import FeedPage from './features/community/pages/FeedPage';
+import MessagesPage from './features/messages/pages/MessagesPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
@@ -30,8 +32,24 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/feed"
+          element={
+            <ProtectedRoute>
+              <FeedPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <MessagesPage />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Default route redirects to dashboard or login */}
+        {/* Default route redirects to dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

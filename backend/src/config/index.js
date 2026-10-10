@@ -40,6 +40,11 @@ const config = {
     url: required('DATABASE_URL'),
   },
 
+  mongodb: {
+    // MongoDB connection URI — optional during phase 1 (auth-only), required for community/messages
+    uri: optional('MONGODB_URI', ''),
+  },
+
   jwt: {
     accessSecret: required('JWT_ACCESS_SECRET'),
     refreshSecret: required('JWT_REFRESH_SECRET'),

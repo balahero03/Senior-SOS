@@ -16,6 +16,9 @@ const morgan = require('morgan');
 const config = require('../config');
 const errorMiddleware = require('../middleware/error.middleware');
 const authRoutes = require('../modules/auth/routes/auth.routes');
+const communityRoutes = require('../modules/community/routes/community.routes');
+const messagesRoutes = require('../modules/messages/routes/messages.routes');
+const usersRoutes = require('../modules/users/routes/users.routes');
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 
@@ -59,10 +62,11 @@ app.get('/health', (req, res) => {
 
 // ─── API routes ───────────────────────────────────────────────────────────────
 // Mount each module router under /api/<module>.
-// Additional modules (users, networking, posts, etc.) will be added here
-// as they are built.
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api', communityRoutes);      // /api/posts, /api/posts/:id/comments, /api/posts/:id/react
+app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
 // ─── 404 for unmatched API routes ────────────────────────────────────────────
 

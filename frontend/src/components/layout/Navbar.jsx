@@ -12,6 +12,10 @@ export default function Navbar() {
     navigate('/login');
   };
 
+  // User model has a single `name` field (not firstName + lastName)
+  const displayName = user?.name || 'User';
+  const initials = displayName.charAt(0).toUpperCase();
+
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-slate-200/80 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -35,22 +39,34 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200">
               <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                {user.firstName ? user.firstName[0].toUpperCase() : 'U'}
+                {initials}
               </div>
               <div className="text-sm">
-                <p className="font-semibold text-slate-800 leading-none">
-                  {user.firstName} {user.lastName}
-                </p>
+                <p className="font-semibold text-slate-800 leading-none">{displayName}</p>
                 <p className="text-xs text-slate-500 capitalize mt-0.5 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${user.role === 'ALUMNI' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                  {user.role} {user.studentProfile?.major || user.alumniProfile?.degreeYear ? `• ${user.studentProfile?.major || user.alumniProfile?.degreeYear}` : ''}
+                  {user.role}
                 </p>
               </div>
             </div>
 
+            <Link
+              to="/feed"
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+            >
+              Feed
+            </Link>
+
+            <Link
+              to="/messages"
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+            >
+              Messages
+            </Link>
+
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-transparent"
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
             >
               Sign out
             </button>

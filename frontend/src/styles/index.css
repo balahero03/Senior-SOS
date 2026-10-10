@@ -22,12 +22,16 @@
     min-height: 100vh;
   }
 
-  /* Remove default autofill background so dark inputs stay dark */
+  /* Ensure inputs and textareas default to crisp dark text on light backgrounds */
+  input, textarea, select {
+    color: #0f172a;
+  }
+
+  /* Autofill styling */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0px 1000px #1a1929 inset;
-    -webkit-text-fill-color: #fff;
+    -webkit-text-fill-color: inherit;
     transition: background-color 5000s ease-in-out 0s;
   }
 }
