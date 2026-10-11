@@ -1,6 +1,5 @@
 # docker-compose.yml
-# Local development stack — starts PostgreSQL only.
-# Add MongoDB and Neo4j when those features are built.
+# Local development stack — starts the databases used by the current app.
 # Start with: docker compose up -d
 
 services:
@@ -13,7 +12,8 @@ services:
       POSTGRES_PASSWORD: seniorsos_pass
       POSTGRES_DB: seniorsos
     ports:
-      - "5432:5432"
+      # Keep the host's default PostgreSQL port available for other projects.
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,5 +22,20 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb:
+    image: mongo:7.0
+    container_name: seniorsos-mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  mongodb_data:

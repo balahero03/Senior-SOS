@@ -1,0 +1,4 @@
+# Local dependencies and runtime output.
+**/node_modules/
+npm-debug.log*
+*.log
