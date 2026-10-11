@@ -8,6 +8,8 @@ const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 
+const PROFILE_PRIVATE_MESSAGE = 'This profile is only visible to connections';
+
 // ─── Metadata & Lookup Handlers ──────────────────────────────────────────────
 
 /**
@@ -185,6 +187,19 @@ const getUserProfile = asyncHandler(async (req, res) => {
   }
 
   const connectionStatus = await getConnectionStatus(currentUserId, user.id);
+
+  // Search filtering is not an authorization boundary: enforce visibility on
+  // direct profile requests as well. Keep the owner's own profile accessible.
+  if (currentUserId !== user.id && connectionStatus !== 'CONNECTED') {
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId: user.id },
+      select: { profileVisibility: true },
+    });
+
+    if (settings?.profileVisibility === 'CONNECTIONS_ONLY') {
+      throw new AppError(PROFILE_PRIVATE_MESSAGE, 404, 'PROFILE_NOT_FOUND');
+    }
+  }
 
   const formattedSkills = user.userSkills.map((us) => ({
     skillId: us.skillId,

@@ -43,7 +43,12 @@ function initSocket(httpServer) {
       }
 
       const decoded = jwt.verify(token, config.jwt.accessSecret);
-      socket.user = decoded; // { id, email, role, ... }
+      // Access tokens identify their subject with `sub` (not `id`). Normalize
+      // both shapes so room membership always uses the actual user UUID.
+      socket.user = { ...decoded, id: decoded.sub || decoded.id };
+      if (!socket.user.id) {
+        return next(new Error('Invalid WebSocket authentication token'));
+      }
       return next();
     } catch (err) {
       return next(new Error('Invalid or expired WebSocket authentication token'));

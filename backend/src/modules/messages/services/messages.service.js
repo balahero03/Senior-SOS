@@ -57,6 +57,19 @@ async function getOrStartConversation(requesterId, targetUserId) {
     throw new AppError('User not found', 404, 'USER_NOT_FOUND');
   }
 
+  // Direct messages are available only between accepted connections.
+  const [userA, userB] = requesterId < targetUserId
+    ? [requesterId, targetUserId]
+    : [targetUserId, requesterId];
+  const connection = await prisma.connection.findUnique({
+    where: { userA_userB: { userA, userB } },
+    select: { userA: true },
+  });
+
+  if (!connection) {
+    throw new AppError('You can message users after they accept your connection request', 403, 'CONNECTION_REQUIRED');
+  }
+
   const conversation = await messagesRepo.getOrCreateConversation(requesterId, targetUserId);
   return conversation;
 }
