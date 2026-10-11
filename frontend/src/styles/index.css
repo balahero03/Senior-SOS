@@ -163,6 +163,66 @@ main .dashboard-module { border-radius: 0; box-shadow: none; }
 .app-header-link { color: #48554e; }
 .app-header-link:hover { color: var(--brand-dark); }
 
+.page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.page-heading-eyebrow {
+  margin-bottom: 0.4rem;
+  color: var(--brand-dark);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.page-heading h1 {
+  color: var(--ink);
+  font-size: clamp(1.8rem, 3vw, 2.35rem);
+  line-height: 1.08;
+}
+
+.page-heading-description {
+  max-width: 42rem;
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.page-heading-actions { flex-shrink: 0; }
+
+.page-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 2.65rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--brand-dark);
+  border-radius: 0.4rem;
+  color: #fffefa;
+  background: var(--brand-dark);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.page-action:hover { background: #173f3c; border-color: #173f3c; }
+
+.page-action-secondary {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.page-action-secondary:hover { background: #efeee7; border-color: #c8cbc2; }
+
 /* Existing feature pages share these surfaces; normalize them as one system. */
 main [class*='bg-white'][class*='rounded-'] {
   border-color: var(--line);
@@ -237,6 +297,8 @@ a[class*='from-blue-600']:hover { background-color: #173f3c; }
 
 @media (max-width: 640px) {
   main.max-w-7xl, main.max-w-2xl { padding-top: 1.25rem; padding-bottom: 2rem; }
+  .page-heading { align-items: flex-start; flex-direction: column; margin-bottom: 1.5rem; }
+  .page-heading-actions { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

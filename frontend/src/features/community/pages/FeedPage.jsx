@@ -1,6 +1,7 @@
 // frontend/src/features/community/pages/FeedPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import useAuthStore from '../../../stores/authStore';
 import { getPosts, createPost, reactToPost, getComments, addComment, deletePost } from '../api';
 
@@ -346,10 +347,11 @@ export default function FeedPage() {
       <Navbar />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-extrabold text-slate-900">Community Feed</h1>
-          <p className="text-sm text-slate-500 mt-1">Posts, updates, and opportunities from students and alumni.</p>
-        </div>
+        <PageHeading
+          title="Community Feed"
+          description="Posts, updates, and opportunities from students and alumni."
+          className="mb-6"
+        />
 
         <PostComposer onPostCreated={handlePostCreated} user={user} />
 

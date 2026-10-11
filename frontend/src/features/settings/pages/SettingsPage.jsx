@@ -1,6 +1,7 @@
 // frontend/src/features/settings/pages/SettingsPage.jsx
 import React, { useState, useEffect } from 'react';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import useAuthStore from '../../../stores/authStore';
 import {
   getSettings,
@@ -170,15 +171,10 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Account & Privacy Settings
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage your network visibility, notification delivery, and security credentials.
-          </p>
-        </div>
+        <PageHeading
+          title="Account & Privacy Settings"
+          description="Manage your network visibility, notification delivery, and security credentials."
+        />
 
         {/* Main Card with Sidebar Tabs */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col md:flex-row">

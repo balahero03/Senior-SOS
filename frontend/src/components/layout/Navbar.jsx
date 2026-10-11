@@ -2,26 +2,28 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import NotificationBell from '../../features/notifications/components/NotificationBell';
+import Icon from '../ui/Icon';
 
 const navigation = [
-  { to: '/dashboard', label: 'Home' },
-  { to: '/discover', label: 'Discover' },
-  { to: '/network', label: 'My network' },
-  { to: '/mentorship', label: 'Mentorship' },
-  { to: '/referrals', label: 'Referrals' },
-  { to: '/feed', label: 'Community' },
-  { to: '/messages', label: 'Messages' },
+  { to: '/dashboard', label: 'Home', icon: 'home' },
+  { to: '/discover', label: 'Discover', icon: 'discover' },
+  { to: '/network', label: 'My network', icon: 'network' },
+  { to: '/mentorship', label: 'Mentorship', icon: 'mentorship' },
+  { to: '/referrals', label: 'Referrals', icon: 'referrals' },
+  { to: '/feed', label: 'Community', icon: 'community' },
+  { to: '/messages', label: 'Messages', icon: 'messages' },
 ];
 
 function NavigationLinks({ onNavigate }) {
-  return navigation.map(({ to, label }) => (
+  return navigation.map(({ to, label, icon }) => (
     <NavLink
       key={to}
       to={to}
       onClick={onNavigate}
-      className={({ isActive }) => `app-nav-link px-3 py-2 text-sm font-medium${isActive ? ' is-active' : ''}`}
+      className={({ isActive }) => `app-nav-link inline-flex items-center gap-2 px-3 py-2 text-sm font-medium${isActive ? ' is-active' : ''}`}
     >
-      {label}
+      <Icon name={icon} className="h-4 w-4 shrink-0" />
+      <span>{label}</span>
     </NavLink>
   ));
 }

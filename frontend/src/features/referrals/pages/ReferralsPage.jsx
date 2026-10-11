@@ -1,6 +1,7 @@
 // frontend/src/features/referrals/pages/ReferralsPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import useAuthStore from '../../../stores/authStore';
 import {
   getSentReferrals,
@@ -63,31 +64,17 @@ export default function ReferralsPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2 border border-blue-200">
-              Career Pipeline
-            </span>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Job Referrals Hub
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm sm:text-base">
-              Get referred to top companies by verified alumni working inside.
-            </p>
-          </div>
-
-          {!isAlumni && (
-            <div>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02]"
-              >
-                + Request Referral
-              </button>
-            </div>
+        <PageHeading
+          eyebrow="Career pipeline"
+          title="Job Referrals Hub"
+          description="Get referred to top companies by verified alumni working inside."
+          actions={!isAlumni && (
+            <button onClick={() => setIsModalOpen(true)} className="page-action">
+              Request referral
+              <span aria-hidden="true">+</span>
+            </button>
           )}
-        </div>
+        />
 
         {/* Tab Controls */}
         <div className="flex border-b border-slate-200 mb-8 gap-6">

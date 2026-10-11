@@ -1,6 +1,8 @@
 // frontend/src/features/discover/pages/DiscoverPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
+import Icon from '../../../components/ui/Icon';
 import MemberCard from '../components/MemberCard';
 import { getDiscoverUsers, getDepartments } from '../api';
 
@@ -74,18 +76,11 @@ export default function DiscoverPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Title */}
-        <div className="mb-8">
-          <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2 border border-blue-200">
-            Network Directory
-          </span>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Discover Campus Members
-          </h1>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">
-            Find alumni mentors, connect with fellow students, and build your professional network.
-          </p>
-        </div>
+        <PageHeading
+          eyebrow="Network directory"
+          title="Discover Campus Members"
+          description="Find alumni mentors, connect with fellow students, and build your professional network."
+        />
 
         {/* Filter Bar */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm mb-8 space-y-4">
@@ -93,7 +88,7 @@ export default function DiscoverPage() {
             {/* Search Input */}
             <div className="md:col-span-5 relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
-                🔍
+                <Icon name="search" className="h-4 w-4" />
               </span>
               <input
                 type="text"

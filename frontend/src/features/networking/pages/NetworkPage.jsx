@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import {
   getConnections,
   getIncomingRequests,
@@ -98,18 +99,11 @@ export default function NetworkPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2 border border-blue-200">
-            Network & Connections
-          </span>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Campus Connections Hub
-          </h1>
-          <p className="text-slate-500 mt-1 text-sm sm:text-base">
-            Manage your network, review incoming connection invitations, and stay in touch.
-          </p>
-        </div>
+        <PageHeading
+          eyebrow="Network & connections"
+          title="Campus Connections Hub"
+          description="Manage your network, review incoming connection invitations, and stay in touch."
+        />
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-200 mb-8 gap-2 sm:gap-6 overflow-x-auto">

@@ -1,6 +1,7 @@
 // frontend/src/features/mentorship/pages/MentorshipPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import useAuthStore from '../../../stores/authStore';
 import { getMyMentorships, updateMentorshipStatus } from '../api';
 import RequestMentorshipModal from '../components/RequestMentorshipModal';
@@ -52,29 +53,17 @@ export default function MentorshipPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2 border border-blue-200">
-              Guidance & Growth
-            </span>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Mentorship Program
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm sm:text-base">
-              Bridge academic life with real-world careers through 1-on-1 mentorship.
-            </p>
-          </div>
-
-          <div>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-semibold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all hover:scale-[1.02]"
-            >
-              + Request Mentorship
+        <PageHeading
+          eyebrow="Guidance & growth"
+          title="Mentorship Program"
+          description="Bridge academic life with real-world careers through 1-on-1 mentorship."
+          actions={(
+            <button onClick={() => setIsModalOpen(true)} className="page-action">
+              Request mentorship
+              <span aria-hidden="true">+</span>
             </button>
-          </div>
-        </div>
+          )}
+        />
 
         {/* Tab Controls */}
         <div className="flex border-b border-slate-200 mb-8 gap-6">

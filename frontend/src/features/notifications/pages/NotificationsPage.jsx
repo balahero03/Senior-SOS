@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
+import PageHeading from '../../../components/ui/PageHeading';
 import { getNotifications, markAsRead, markAllAsRead } from '../api';
 
 export default function NotificationsPage() {
@@ -198,29 +199,16 @@ export default function NotificationsPage() {
       <Navbar />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wider mb-2 border border-blue-200">
-              Activity & Alerts
-            </span>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Notifications Center
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm sm:text-base">
-              Track requests, mentorship updates, and connection activities.
-            </p>
-          </div>
-
-          {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAll}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors self-start sm:self-auto"
-            >
-              ✓ Mark all as read
+        <PageHeading
+          eyebrow="Activity & alerts"
+          title="Notifications Center"
+          description="Track requests, mentorship updates, and connection activities."
+          actions={unreadCount > 0 && (
+            <button onClick={handleMarkAll} className="page-action page-action-secondary">
+              Mark all as read
             </button>
           )}
-        </div>
+        />
 
         {/* Tab Controls */}
         <div className="flex border-b border-slate-200 mb-6 gap-6">
