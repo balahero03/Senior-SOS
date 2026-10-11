@@ -39,15 +39,14 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Only attempt refresh for 401 errors, not for /auth/refresh, /auth/login, or /auth/me itself
-    // (prevents infinite refresh and reload loops on public routes like /login)
+    // Don't refresh the refresh or login endpoints. /auth/me may run during
+    // startup, so let it refresh an expired access token and retry once.
     if (
       error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retried &&
       !originalRequest.url?.includes('/auth/refresh') &&
-      !originalRequest.url?.includes('/auth/login') &&
-      !originalRequest.url?.includes('/auth/me')
+      !originalRequest.url?.includes('/auth/login')
     ) {
       if (isRefreshing) {
         // Queue subsequent 401s while a refresh is in flight
