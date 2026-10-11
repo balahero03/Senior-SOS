@@ -10,6 +10,12 @@ export default function DashboardPage() {
   // User model has single `name` field
   const displayName = user?.name || 'there';
   const initials = displayName.charAt(0).toUpperCase();
+  const modules = [
+    { tag: 'DB', status: '✓ Live', title: 'Identity & Auth', description: 'PostgreSQL: Users, roles, academic/alumni profiles, httpOnly JWT auth.' },
+    { tag: 'CM', status: '✓ Live', title: 'Content & Chat', description: 'MongoDB: Posts, comments, reactions, conversations, and messages.', to: '/feed' },
+    { tag: 'NG', status: 'Coming Soon', title: 'Network Graph', description: 'Neo4j: Multi-hop connection paths and alumni referral pathways.' },
+    { tag: 'RC', status: 'Coming Soon', title: 'Redis Cache', description: 'In-memory cache for sessions, rate-limiting, and WebSocket events.' },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -19,14 +25,13 @@ export default function DashboardPage() {
         {/* Hero Welcome Banner */}
         <div className="dashboard-hero mb-8 p-7 sm:p-10">
           <div className="relative z-10 max-w-2xl">
-            <span className="mb-4 inline-flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#b9d5d7]">
-              <span className="h-px w-7 bg-[#c58a62]" aria-hidden="true" />
+            <span className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
               Your SeniorSOS network
             </span>
-            <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
               Good to see you, {displayName}.
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#d0dfdf] sm:text-base">
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
               {user?.role === 'STUDENT'
                 ? 'Connect with alumni mentors, explore career guidance, and get referred to top tech opportunities.'
                 : 'Share your professional expertise, mentor rising students, and help top talent from your alma mater.'}
@@ -34,13 +39,13 @@ export default function DashboardPage() {
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 to="/feed"
-                className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-[#1e4350] transition-colors hover:bg-[#edf4f3]"
+                className="rounded-md bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800"
               >
                 Browse Feed
               </Link>
               <Link
                 to="/messages"
-                className="rounded-lg border border-white/30 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                className="rounded-md border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100"
               >
                 Messages
               </Link>
@@ -51,9 +56,9 @@ export default function DashboardPage() {
         {/* Profile Card & Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Account Details Card */}
-          <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+          <div className="lg:col-span-1 bg-white p-6 rounded-xl border border-slate-200 space-y-6">
             <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-md">
+              <div className="w-14 h-14 rounded-lg bg-blue-700 text-white flex items-center justify-center font-semibold text-xl">
                 {initials}
               </div>
               <div>
@@ -120,52 +125,27 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Column: Platform Feature Status */}
-          <div className="lg:col-span-2 space-y-6">
-            <h3 className="text-lg font-bold text-slate-900">Platform Modules</h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* PostgreSQL Auth — Live */}
-              <div className="p-5 rounded-2xl bg-white border border-emerald-200 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-xs font-bold text-blue-800">DB</span>
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">✓ Live</span>
-                </div>
-                <h4 className="font-bold text-slate-900">Identity & Auth</h4>
-                <p className="text-xs text-slate-500 mt-1">PostgreSQL: Users, roles, academic/alumni profiles, httpOnly JWT auth.</p>
-              </div>
-
-              {/* MongoDB Content — Live */}
-              <div className="p-5 rounded-2xl bg-white border border-emerald-200 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-xs font-bold text-emerald-800">CM</span>
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">✓ Live</span>
-                </div>
-                <h4 className="font-bold text-slate-900">Content & Chat</h4>
-                <p className="text-xs text-slate-500 mt-1">MongoDB: Posts, comments, reactions, conversations, and messages.</p>
-                <Link to="/feed" className="mt-2 inline-block text-xs font-semibold text-emerald-700 hover:underline">Go to Feed →</Link>
-              </div>
-
-              {/* Neo4j Graph */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm opacity-75">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-xs font-bold text-amber-800">NG</span>
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">Coming Soon</span>
-                </div>
-                <h4 className="font-bold text-slate-900">Network Graph</h4>
-                <p className="text-xs text-slate-500 mt-1">Neo4j: Multi-hop connection paths and alumni referral pathways.</p>
-              </div>
-
-              {/* Redis */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm opacity-75">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-xs font-bold text-red-800">RC</span>
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">Coming Soon</span>
-                </div>
-                <h4 className="font-bold text-slate-900">Redis Cache</h4>
-                <p className="text-xs text-slate-500 mt-1">In-memory cache for sessions, rate-limiting, and WebSocket events.</p>
+          <section className="lg:col-span-2" aria-labelledby="modules-heading">
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">System overview</p>
+                <h2 id="modules-heading" className="mt-1 text-2xl font-semibold text-slate-900">Platform Modules</h2>
               </div>
             </div>
-          </div>
+            <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+              {modules.map(({ tag, status, title, description, to }) => (
+                <article key={tag} className="dashboard-module border-t border-slate-200 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-mono text-xs font-semibold tracking-wide text-blue-700">{tag}</span>
+                    <span className={`text-xs font-medium ${status === '✓ Live' ? 'text-emerald-700' : 'text-slate-500'}`}>{status}</span>
+                  </div>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900">{title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{description}</p>
+                  {to && <Link to={to} className="mt-2 inline-block text-sm font-semibold text-blue-700 hover:underline">Go to Feed →</Link>}
+                </article>
+              ))}
+            </div>
+          </section>
         </div>
       </main>
     </div>

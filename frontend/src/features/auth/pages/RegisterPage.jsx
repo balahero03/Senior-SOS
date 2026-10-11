@@ -174,17 +174,16 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-surface bg-auth-mesh flex items-center justify-center px-4 py-12">
-      {/* Background glows */}
-      <div className="relative w-full max-w-md animate-slide-up">
+        <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-brand mb-4 shadow-lg shadow-brand-900/50">
-            <span className="text-2xl font-bold text-white">S</span>
+          <Link to="/" className="auth-logo inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4">
+            <span className="text-2xl font-bold text-slate-900">S</span>
           </Link>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
             {step === 0 ? 'Create account' : 'Academic details'}
           </h1>
-          <p className="text-slate-400 mt-2 text-sm">
+          <p className="text-slate-600 mt-2 text-sm">
             {step === 0
               ? 'Join your college professional network'
               : 'Tell us about your academic background'}
@@ -192,7 +191,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="card-glass p-8 shadow-2xl shadow-black/40">
+        <div className="card-glass p-8">
           <StepIndicator current={step} total={2} />
 
           {/* API error */}
@@ -221,7 +220,7 @@ export default function RegisterPage() {
                       className={`py-3 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                         form.role === r
                           ? 'bg-brand-600/20 border-brand-500 text-brand-300'
-                          : 'border-surface-border text-slate-400 hover:border-brand-700/60 hover:text-slate-300'
+                          : 'border-surface-border text-slate-700 hover:border-brand-700/60 hover:text-slate-900'
                       }`}
                     >
                       {r === 'STUDENT' ? '🎓 Student' : '💼 Alumni'}
@@ -358,7 +357,7 @@ export default function RegisterPage() {
               <div className="flex gap-3 mt-2">
                 <button type="button" onClick={() => setStep(0)}
                   className="flex-1 py-3 px-4 rounded-xl border border-surface-border
-                             text-slate-400 hover:text-slate-300 hover:border-brand-700/60
+                             text-slate-700 hover:text-slate-900 hover:border-brand-700/60
                              font-semibold transition-all duration-200">
                   Back
                 </button>

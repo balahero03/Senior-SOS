@@ -62,22 +62,22 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface bg-auth-mesh flex items-center justify-center px-4 py-12">
-      <div className="relative w-full max-w-md animate-slide-up">
+      <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-brand mb-4 shadow-lg shadow-brand-900/50">
-            <span className="text-2xl font-bold text-white">S</span>
+          <div className="auth-logo inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4">
+            <span className="text-2xl font-bold text-slate-900">S</span>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
             Welcome back
           </h1>
-          <p className="text-slate-400 mt-2 text-sm">
+          <p className="text-slate-600 mt-2 text-sm">
             Sign in to your SeniorSOS account
           </p>
         </div>
 
         {/* Card */}
-        <div className="card-glass p-8 shadow-2xl shadow-black/40">
+        <div className="card-glass p-8">
           {/* API error */}
           {apiError && (
             <div className="alert-error mb-6" role="alert">
@@ -126,7 +126,7 @@ export default function LoginPage() {
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+                  className="text-xs text-blue-700 hover:text-blue-900 transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -192,8 +192,8 @@ export default function LoginPage() {
           <Link
             to="/register"
             className="block w-full text-center py-3 px-6 rounded-xl font-semibold
-                       border border-brand-700/60 text-brand-400
-                       hover:bg-brand-950/50 hover:border-brand-500
+                       border border-surface-border text-slate-800
+                       hover:bg-slate-50 hover:border-slate-300
                        transition-all duration-200"
           >
             Create account

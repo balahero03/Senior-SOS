@@ -150,7 +150,33 @@ wait_for_mongodb || fail "MongoDB did not become ready. Check: docker compose lo
 
 echo "Generating Prisma client and applying database migrations..."
 npm --prefix "$BACKEND_DIR" run db:generate
-npm --prefix "$BACKEND_DIR" run db:migrate:prod
+
+# Prisma's migrate deploy can time out while waiting for its PostgreSQL
+# advisory lock (P1002), especially on hosted/pooler databases. Retry only
+# that transient lock timeout; schema and connection errors should fail fast.
+migrate_with_lock_retry() {
+  local attempt=1 max_attempts=4 status=0 output delay
+  while ((attempt <= max_attempts)); do
+    if output="$(npm --prefix "$BACKEND_DIR" run db:migrate:prod 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
+    else
+      status=$?
+      printf '%s\n' "$output" >&2
+    fi
+
+    if [[ "$output" != *"P1002"* || $attempt -eq $max_attempts ]]; then
+      return "$status"
+    fi
+
+    delay=$((attempt * 5))
+    echo "Prisma migration lock timed out; retrying in ${delay}s (attempt $((attempt + 1))/$max_attempts)..." >&2
+    sleep "$delay"
+    ((attempt += 1))
+  done
+}
+
+migrate_with_lock_retry
 
 echo "Starting SeniorSOS frontend and backend..."
 npm --prefix "$FRONTEND_DIR" run dev -- --host "${FRONTEND_HOST:-127.0.0.1}" --port 5173 --strictPort &

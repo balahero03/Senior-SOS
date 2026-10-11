@@ -73,14 +73,14 @@ export default function Navbar() {
     <header className="app-header sticky top-0 z-50">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link to="/dashboard" className="group flex shrink-0 items-center gap-3" aria-label="SeniorSOS home">
-          <span className="app-brand-mark flex h-10 w-10 items-center justify-center text-xl font-semibold transition-transform group-hover:-rotate-3">
+          <span className="app-brand-mark flex h-10 w-10 items-center justify-center text-xl font-semibold">
             S
           </span>
           <span className="leading-tight">
-            <span className="block text-[1.08rem] font-semibold tracking-tight text-slate-900">
-              Senior<span className="text-blue-700">SOS</span>
+            <span className="app-brand-name block text-[1.08rem] font-semibold tracking-tight">
+              Senior<span className="app-brand-accent">SOS</span>
             </span>
-            <span className="hidden text-[0.68rem] tracking-wide text-slate-500 sm:block">Your campus, connected</span>
+            <span className="app-brand-tagline hidden text-[0.68rem] tracking-wide sm:block">Your campus, connected</span>
           </span>
         </Link>
 
@@ -185,7 +185,7 @@ export default function Navbar() {
 
         {!user && (
           <div className="flex items-center gap-3">
-            <Link to="/login" className="text-sm font-medium text-slate-700 transition-colors hover:text-blue-800">Sign in</Link>
+            <Link to="/login" className="app-header-link text-sm font-medium transition-colors">Sign in</Link>
             <Link to="/register" className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-800">Join the network</Link>
           </div>
         )}

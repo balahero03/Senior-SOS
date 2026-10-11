@@ -11,8 +11,8 @@ function LoadingSpinner() {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-brand animate-pulse-slow flex items-center justify-center">
-          <span className="text-xl font-bold text-white">S</span>
+        <div className="w-12 h-12 rounded-lg bg-blue-700 animate-pulse-slow flex items-center justify-center">
+          <span className="text-xl font-bold text-slate-900">S</span>
         </div>
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
