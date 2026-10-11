@@ -16,18 +16,26 @@ export default function RequestMentorshipModal({ isOpen, onClose, initialMentorI
   const [goals, setGoals] = useState('');
   const [frequency, setFrequency] = useState('ONE_TIME');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingMentors, setIsLoadingMentors] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
+    setError(null);
+    setAlumniList([]);
     if (initialMentorId) {
       setMentorId(initialMentorId);
     }
 
+    setIsLoadingMentors(true);
     getAlumniList()
       .then((users) => setAlumniList(users || []))
-      .catch((err) => console.error('Failed to load alumni', err));
+      .catch((err) => {
+        console.error('Failed to load verified alumni mentors', err);
+        setError('Could not load mentors. Please close this window and try again.');
+      })
+      .finally(() => setIsLoadingMentors(false));
   }, [isOpen, initialMentorId]);
 
   if (!isOpen) return null;
@@ -101,16 +109,24 @@ export default function RequestMentorshipModal({ isOpen, onClose, initialMentorI
               value={mentorId}
               onChange={(e) => setMentorId(e.target.value)}
               required
+              disabled={isLoadingMentors}
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white"
             >
-              <option value="">Choose an alumnus...</option>
+              <option value="">{isLoadingMentors ? 'Loading verified alumni...' : 'Choose an alumnus...'}</option>
               {alumniList.map((alumnus) => (
                 <option key={alumnus.id} value={alumnus.id}>
-                  {alumnus.name} {alumnus.company ? `(${alumnus.company})` : ''} -{' '}
-                  {alumnus.department || 'Alumni'}
+                  {alumnus.name}
+                  {alumnus.designation || alumnus.company
+                    ? ` — ${[alumnus.designation, alumnus.company].filter(Boolean).join(' at ')}`
+                    : ' — Verified alumnus'}
                 </option>
               ))}
             </select>
+            {!isLoadingMentors && alumniList.length === 0 && (
+              <p className="mt-2 text-xs text-slate-500">
+                No verified alumni are available for mentorship yet.
+              </p>
+            )}
           </div>
 
           {/* Focus Area */}
@@ -121,6 +137,7 @@ export default function RequestMentorshipModal({ isOpen, onClose, initialMentorI
               value={focusArea}
               onChange={(e) => setFocusArea(e.target.value)}
               required
+              maxLength={150}
               placeholder="e.g. Software Engineering Career Prep, System Design"
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
             />

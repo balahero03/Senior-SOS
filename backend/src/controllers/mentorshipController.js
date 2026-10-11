@@ -13,6 +13,49 @@ const { createNotification } = require('../services/notificationService');
 const VALID_FREQUENCIES = ['ONE_TIME', 'WEEKLY', 'MONTHLY'];
 
 /**
+ * GET /api/mentorship/mentors
+ * Return active, verified alumni available to students for mentorship.
+ */
+const getMentors = asyncHandler(async (req, res) => {
+  const mentors = await prisma.user.findMany({
+    where: {
+      role: 'ALUMNI',
+      status: 'ACTIVE',
+      alumniProfile: { is: { verificationStatus: 'APPROVED' } },
+    },
+    select: {
+      id: true,
+      name: true,
+      alumniProfile: {
+        select: {
+          designation: true,
+          company: { select: { name: true } },
+        },
+      },
+      academicProfile: {
+        select: { department: { select: { code: true } } },
+      },
+    },
+    orderBy: { name: 'asc' },
+    take: 100,
+  });
+
+  res.json({
+    success: true,
+    data: {
+      mentors: mentors.map((mentor) => ({
+        id: mentor.id,
+        name: mentor.name,
+        role: 'ALUMNI',
+        designation: mentor.alumniProfile?.designation || null,
+        company: mentor.alumniProfile?.company?.name || null,
+        department: mentor.academicProfile?.department?.code || null,
+      })),
+    },
+  });
+});
+
+/**
  * POST /api/mentorship/request
  * Send a mentorship request from Mentee (student) to Mentor (alumnus).
  */
@@ -24,12 +67,28 @@ const requestMentorship = asyncHandler(async (req, res) => {
     throw new AppError('mentorId is required', 400, 'VALIDATION_ERROR');
   }
 
+  if (req.user.role !== 'STUDENT') {
+    throw new AppError('Only students can request mentorship', 403, 'FORBIDDEN');
+  }
+
   if (menteeId === mentorId) {
     throw new AppError('You cannot request mentorship from yourself', 400, 'SELF_MENTORSHIP_FORBIDDEN');
   }
 
-  if (!focusArea || !focusArea.trim()) {
+  if (typeof focusArea !== 'string' || !focusArea.trim()) {
     throw new AppError('focusArea is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (focusArea.trim().length > 150) {
+    throw new AppError('focusArea must be 150 characters or fewer', 400, 'VALIDATION_ERROR');
+  }
+
+  if (helpDescription != null && typeof helpDescription !== 'string') {
+    throw new AppError('helpDescription must be text', 400, 'VALIDATION_ERROR');
+  }
+
+  if (goals != null && typeof goals !== 'string') {
+    throw new AppError('goals must be text', 400, 'VALIDATION_ERROR');
   }
 
   const selectedFrequency = frequency || 'ONE_TIME';
@@ -59,6 +118,10 @@ const requestMentorship = asyncHandler(async (req, res) => {
 
   if (mentor.role !== 'ALUMNI') {
     throw new AppError('Mentorship can only be requested from an alumnus', 400, 'INVALID_MENTOR_ROLE');
+  }
+
+  if (mentor.alumniProfile?.verificationStatus !== 'APPROVED') {
+    throw new AppError('Mentorship requests are available only for verified alumni', 400, 'MENTOR_NOT_VERIFIED');
   }
 
   // Enforce single open mentorship constraint (PENDING or ACTIVE between this pair)
@@ -224,7 +287,7 @@ const updateMentorshipStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  if (!status) {
+  if (typeof status !== 'string' || !status) {
     throw new AppError('status is required', 400, 'VALIDATION_ERROR');
   }
 
@@ -285,10 +348,18 @@ const updateMentorshipStatus = asyncHandler(async (req, res) => {
     );
   }
 
-  const updated = await prisma.mentorshipRequest.update({
-    where: { id },
+  // Compare-and-set the prior status so concurrent decisions cannot overwrite
+  // one another after both requests pass the transition checks above.
+  const changed = await prisma.mentorshipRequest.updateMany({
+    where: { id, status: currentStatus },
     data: updateData,
   });
+
+  if (changed.count !== 1) {
+    throw new AppError('This mentorship was updated by someone else; reload and try again', 409, 'MENTORSHIP_CONFLICT');
+  }
+
+  const updated = await prisma.mentorshipRequest.findUnique({ where: { id } });
 
   // Notify the other party about the status update
   const partnerId = isMentor ? mentorship.menteeId : mentorship.mentorId;
@@ -298,7 +369,7 @@ const updateMentorshipStatus = asyncHandler(async (req, res) => {
     type: 'MENTORSHIP_STATUS_UPDATED',
     payload: {
       mentorshipId: id,
-      oldStatus,
+      oldStatus: currentStatus,
       newStatus: status,
     },
   });
@@ -313,6 +384,7 @@ const updateMentorshipStatus = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getMentors,
   requestMentorship,
   getMyMentorships,
   updateMentorshipStatus,

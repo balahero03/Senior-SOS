@@ -12,6 +12,7 @@ const router = express.Router();
 
 router.use(requireAuth);
 
+router.get('/mentors', mentorshipController.getMentors);
 router.post('/request', mentorshipController.requestMentorship);
 router.get('/my-mentorships', mentorshipController.getMyMentorships);
 router.patch('/:id/status', mentorshipController.updateMentorshipStatus);
