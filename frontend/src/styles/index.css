@@ -1,11 +1,23 @@
-/* frontend/src/styles/index.css */
-/* Global styles: Tailwind directives, base resets, and design tokens. */
-
+/* SeniorSOS visual system: a calm campus directory with a warm paper ground. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Base ──────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --page: #f5f7f5;
+  --paper: #ffffff;
+  --ink: #17251f;
+  --muted: #687770;
+  --line: #dce4df;
+  --brand: #28677b;
+  --brand-dark: #1e4350;
+  --accent: #b66f45;
+  --focus: #347d92;
+  --shadow-card: 0 8px 24px rgba(23, 37, 31, 0.045);
+  --shadow-menu: 0 18px 42px rgba(23, 37, 31, 0.16);
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
@@ -15,91 +27,208 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-surface text-white font-sans;
+    @apply bg-slate-50 text-slate-800 font-sans;
+    min-width: 320px;
     min-height: 100vh;
   }
 
-  /* Ensure inputs and textareas default to crisp dark text on light backgrounds */
-  input, textarea, select {
-    color: #0f172a;
+  h1, h2, h3 {
+    font-family: 'Newsreader', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
   }
 
-  /* Autofill styling */
+  a, button, input, textarea, select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+
+  input, textarea, select {
+    color: var(--ink);
+  }
+
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
     -webkit-text-fill-color: inherit;
     transition: background-color 5000s ease-in-out 0s;
   }
-}
 
-/* ─── Components ─────────────────────────────────────────────────────────────── */
-@layer components {
-  /* Glass card */
-  .card-glass {
-    @apply bg-surface-card border border-surface-border rounded-2xl;
-    backdrop-filter: blur(12px);
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--focus) 62%, white);
+    outline-offset: 2px;
   }
 
-  /* Form input */
+  ::selection {
+    color: #fff;
+    background: var(--brand);
+  }
+}
+
+@layer components {
+  .card-glass {
+    @apply bg-surface-card border border-surface-border;
+    border-radius: 1.15rem;
+    backdrop-filter: none;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  }
+
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl bg-surface-raised border border-surface-border
-           text-white placeholder-slate-500
+    @apply w-full px-4 py-3 bg-surface-raised border border-surface-border
+           text-white placeholder-slate-400
            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
-           transition-all duration-200;
+           transition-colors duration-150;
+    border-radius: 0.7rem;
   }
 
   .input-field.error {
     @apply border-red-500 focus:ring-red-500;
   }
 
-  /* Label */
   .input-label {
     @apply block text-sm font-medium text-slate-300 mb-1.5;
   }
 
-  /* Primary button */
   .btn-primary {
-    @apply w-full py-3 px-6 rounded-xl font-semibold text-white
-           bg-gradient-to-r from-brand-600 to-brand-500
-           hover:from-brand-500 hover:to-brand-400
-           active:scale-[0.98]
+    @apply w-full py-3 px-6 font-semibold text-white
+           bg-brand-600 hover:bg-brand-500 active:scale-[0.99]
            focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-surface-card
            disabled:opacity-50 disabled:cursor-not-allowed
-           transition-all duration-200 shadow-lg shadow-brand-900/40;
+           transition-colors duration-150;
+    border-radius: 0.7rem;
+    box-shadow: none;
   }
 
-  /* Secondary / ghost button */
   .btn-ghost {
-    @apply py-2 px-4 rounded-xl font-medium text-brand-400 
-           hover:text-brand-300 hover:bg-brand-950/50
-           transition-all duration-200;
+    @apply py-2 px-4 font-medium text-brand-300 hover:text-white hover:bg-white/5
+           transition-colors duration-150;
+    border-radius: 0.6rem;
   }
 
-  /* Error message below input */
   .field-error {
     @apply text-red-400 text-xs mt-1.5 flex items-center gap-1;
   }
 
-  /* Alert banner */
   .alert-error {
-    @apply flex items-start gap-3 p-4 rounded-xl bg-red-950/60 border border-red-800
-           text-red-300 text-sm;
+    @apply flex items-start gap-3 p-4 border border-red-800 text-red-300 text-sm;
+    border-radius: 0.8rem;
+    background: rgba(69, 10, 10, 0.48);
+  }
+
+  .app-header {
+    background: rgba(255, 255, 255, 0.96);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 2px 12px rgba(23, 37, 31, 0.025);
+  }
+
+  .app-brand-mark {
+    background: var(--brand-dark);
+    color: #fff;
+    border-radius: 0.7rem;
+    font-family: 'Newsreader', Georgia, serif;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  }
+
+  .app-nav-link {
+    color: var(--muted);
+    border-radius: 0.55rem;
+    transition: color 140ms ease, background-color 140ms ease;
+  }
+
+  .app-nav-link:hover,
+  .app-nav-link[aria-current='page'] {
+    color: var(--brand-dark);
+    background: #edf4f3;
+  }
+
+  .dashboard-hero {
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    background: #1b3c46;
+    border-radius: 1.35rem;
+    box-shadow: 0 12px 30px rgba(22, 58, 68, 0.12);
+  }
+
+  .dashboard-hero::after {
+    content: 'SeniorSOS';
+    position: absolute;
+    right: 2.2rem;
+    bottom: -2.1rem;
+    color: rgba(255, 255, 255, 0.055);
+    font: 600 clamp(4.5rem, 11vw, 9rem)/1 'Newsreader', Georgia, serif;
+    letter-spacing: -0.07em;
+    pointer-events: none;
+    white-space: nowrap;
   }
 }
 
-/* ─── Utilities ──────────────────────────────────────────────────────────────── */
-@layer utilities {
-  .text-gradient {
-    @apply bg-gradient-to-r from-brand-400 to-brand-200 bg-clip-text text-transparent;
+/* The auth area remains a focused, darker space, without the old purple glow. */
+.bg-auth-mesh {
+  background-color: #10232b;
+  background-image: radial-gradient(ellipse at 80% 0%, rgba(52, 125, 146, 0.13), transparent 42%);
+}
+
+/* Shared polish for white surfaces used across the existing feature pages. */
+main .bg-white.rounded-2xl,
+main .bg-white.rounded-3xl {
+  border-color: var(--line);
+  border-radius: 1.05rem;
+  box-shadow: var(--shadow-card);
+}
+
+main .bg-white.rounded-2xl,
+main .bg-white.rounded-3xl,
+main .bg-white.rounded-xl {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+  border-radius: 0.65rem;
+}
+
+button {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Keep dense data views usable on narrow screens. */
+main {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  main.max-w-7xl,
+  main.max-w-2xl {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
   }
 
-  .bg-auth-mesh {
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(129, 140, 248, 0.10) 0%, transparent 50%);
+  .dashboard-hero::after {
+    right: 0.9rem;
+    bottom: -0.9rem;
+    font-size: 4.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -4,28 +4,55 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        display: ['Newsreader', 'Georgia', 'serif'],
       },
       colors: {
-        // SeniorSOS brand palette
+        // SeniorSOS: campus ink and a calm, trustworthy ocean blue.
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1', // Primary
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50:  '#edf6f8',
+          100: '#d9ebef',
+          200: '#b5d7df',
+          300: '#88bdca',
+          400: '#579caf',
+          500: '#347d92',
+          600: '#28677b',
+          700: '#225363',
+          800: '#1e4350',
+          900: '#1a3742',
+          950: '#10262e',
         },
         surface: {
-          DEFAULT: '#0f0e17',
-          card:    '#1a1929',
-          raised:  '#232234',
-          border:  '#2e2d45',
+          DEFAULT: '#10232b',
+          card:    '#172d36',
+          raised:  '#203943',
+          border:  '#304a53',
+        },
+        slate: {
+          50: '#f5f7f5',
+          100: '#edf1ee',
+          200: '#dce4df',
+          300: '#c4d0ca',
+          400: '#8b9a93',
+          500: '#687770',
+          600: '#4d5b54',
+          700: '#37453f',
+          800: '#26342e',
+          900: '#17251f',
+          950: '#0e1713',
+        },
+        blue: {
+          50: '#edf6f8',
+          100: '#d9ebef',
+          200: '#b5d7df',
+          300: '#88bdca',
+          400: '#579caf',
+          500: '#347d92',
+          600: '#28677b',
+          700: '#225363',
+          800: '#1e4350',
+          900: '#1a3742',
+          950: '#10262e',
         },
       },
       animation: {
@@ -45,9 +72,9 @@ export default {
       },
       backgroundImage: {
         'gradient-brand':
-          'linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #818cf8 100%)',
+          'linear-gradient(135deg, #225363 0%, #347d92 100%)',
         'gradient-dark':
-          'linear-gradient(180deg, #0f0e17 0%, #1a1929 100%)',
+          'linear-gradient(180deg, #10232b 0%, #172d36 100%)',
       },
     },
   },

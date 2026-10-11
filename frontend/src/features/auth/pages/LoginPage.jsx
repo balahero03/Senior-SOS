@@ -62,12 +62,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface bg-auth-mesh flex items-center justify-center px-4 py-12">
-      {/* Background glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-brand-700/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-brand-600/15 rounded-full blur-3xl" />
-      </div>
-
       <div className="relative w-full max-w-md animate-slide-up">
         {/* Logo */}
         <div className="text-center mb-8">
