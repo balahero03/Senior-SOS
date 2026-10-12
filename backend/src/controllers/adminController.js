@@ -9,6 +9,7 @@ const { prisma } = require('../database/postgres');
 const { Post } = require('../models');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 /**
  * GET /api/admin/stats
@@ -176,6 +177,21 @@ const updateVerificationStatus = asyncHandler(async (req, res) => {
     });
 
     return { updatedProfile, auditLog };
+  });
+
+  // Dispatch in-app notification to the reviewed alumnus
+  await createNotification({
+    recipientId: targetUserId,
+    actorId: adminId,
+    type: status === 'APPROVED' ? 'ALUMNI_VERIFIED' : 'ALUMNI_REJECTED',
+    payload: {
+      status,
+      message:
+        status === 'APPROVED'
+          ? 'Congratulations! Your alumni credentials have been verified by the administrator. Welcome to the verified mentor network!'
+          : 'Your alumni verification request was declined. Please verify your graduation and employer details.',
+      reviewedAt: new Date().toISOString(),
+    },
   });
 
   res.json({

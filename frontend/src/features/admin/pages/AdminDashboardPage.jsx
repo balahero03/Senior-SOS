@@ -37,6 +37,7 @@ export default function AdminDashboardPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [verificationSearch, setVerificationSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -377,7 +378,45 @@ export default function AdminDashboardPage() {
 
         {/* TAB 1: Alumni Verification Queue */}
         {activeTab === 'verifications' && (
-          <div>
+          <div className="space-y-4">
+            {/* Vetting Information Header Card */}
+            <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                    Trust & Verification
+                  </span>
+                  <span className="text-xs font-semibold text-purple-200">
+                    {verifications.length} Pending Submission{verifications.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold mt-1 text-white">Alumni Identity & Credentials Vetting</h3>
+                <p className="text-xs text-purple-200/80 max-w-2xl mt-0.5">
+                  Approve campus alumni to grant them official Verified Mentor status, unlock mentorship capabilities, and build student trust. Every decision generates an immutable audit record and notifies the applicant.
+                </p>
+              </div>
+
+              {verifications.length > 0 && (
+                <div className="relative min-w-[220px]">
+                  <input
+                    type="text"
+                    value={verificationSearch}
+                    onChange={(e) => setVerificationSearch(e.target.value)}
+                    placeholder="Filter by name or company..."
+                    className="w-full px-3 py-1.5 bg-white/10 placeholder-purple-300 text-white text-xs rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+                  />
+                  {verificationSearch && (
+                    <button
+                      onClick={() => setVerificationSearch('')}
+                      className="absolute right-2 top-2 text-xs text-purple-300 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {isLoading ? (
               <div className="p-12 text-center text-slate-400">Loading pending verifications...</div>
             ) : verifications.length === 0 ? (
@@ -387,14 +426,25 @@ export default function AdminDashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">Verification Queue is Empty</h3>
+                <h3 className="text-lg font-bold text-slate-800">Verification Queue is Clear</h3>
                 <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  All alumni registration submissions have been reviewed. New verification requests will appear here.
+                  All alumni registration submissions have been thoroughly vetted. When new graduates sign up, their credentials will populate here for institutional review.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {verifications.map((item) => {
+                {verifications
+                  .filter((item) => {
+                    if (!verificationSearch.trim()) return true;
+                    const query = verificationSearch.toLowerCase();
+                    return (
+                      item.name?.toLowerCase().includes(query) ||
+                      item.email?.toLowerCase().includes(query) ||
+                      item.company?.toLowerCase().includes(query) ||
+                      item.designation?.toLowerCase().includes(query)
+                    );
+                  })
+                  .map((item) => {
                   const isOperating = actionLoadingId === item.userId;
                   return (
                     <div
