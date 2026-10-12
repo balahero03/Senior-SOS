@@ -68,7 +68,7 @@ const registerSchema = z
     experienceYears: z
       .number()
       .min(0, 'Experience years must be 0 or greater')
-      .max(60)
+      .max(100, 'Experience years must be 100 or less')
       .optional(),
   })
   .superRefine((data, ctx) => {

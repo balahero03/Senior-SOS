@@ -128,6 +128,7 @@ export default function RegisterPage() {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
+        confirmPassword: form.confirmPassword,
         role: form.role,
         departmentId: form.departmentId,
         graduationYear: parseInt(form.graduationYear, 10),

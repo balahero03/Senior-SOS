@@ -6,12 +6,10 @@ import LoginPage from './features/auth/pages/LoginPage';
 import RegisterPage from './features/auth/pages/RegisterPage';
 import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
-import FeedPage from './features/community/pages/FeedPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
-import MentorshipPage from './features/mentorship/pages/MentorshipPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
@@ -58,14 +56,6 @@ export default function App() {
           }
         />
         <Route
-          path="/mentorship"
-          element={
-            <ProtectedRoute>
-              <MentorshipPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/notifications"
           element={
             <ProtectedRoute>
@@ -106,14 +96,6 @@ export default function App() {
           }
         />
         <Route
-          path="/feed"
-          element={
-            <ProtectedRoute>
-              <FeedPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/messages"
           element={
             <ProtectedRoute>
@@ -121,6 +103,10 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Redirect removed feed and mentorship routes to main dashboard */}
+        <Route path="/feed" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/mentorship" element={<Navigate to="/dashboard" replace />} />
 
         {/* Default route redirects to dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

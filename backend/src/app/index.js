@@ -7,7 +7,13 @@
 
 'use strict';
 
+const nodeCrypto = require('crypto');
+if (!global.crypto) {
+  global.crypto = nodeCrypto.webcrypto || nodeCrypto;
+}
+
 const express = require('express');
+
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
