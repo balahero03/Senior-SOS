@@ -27,6 +27,11 @@ router.post('/logout', authController.logout);
 // Uses the httpOnly refresh token cookie; issues new access + refresh tokens
 router.post('/refresh', authController.refresh);
 
+// POST /api/auth/reset-password
+// Forgot password via email + department verification
+router.post('/reset-password', authController.resetPassword);
+
+
 // ─── Protected routes ─────────────────────────────────────────────────────────
 
 // GET /api/auth/me

@@ -74,10 +74,10 @@ export default function NotificationBell() {
         break;
       case 'MENTORSHIP_REQUEST_RECEIVED':
       case 'MENTORSHIP_STATUS_UPDATED':
-        navigate('/mentorship');
+        navigate('/network');
         break;
       case 'POST_COMMENT_RECEIVED':
-        navigate('/feed');
+        navigate('/dashboard');
         break;
       default:
         navigate('/notifications');

@@ -34,11 +34,18 @@ export async function logoutUser() {
 }
 
 /**
- * Fetch departments for the register form.
- * Departments live in PostgreSQL — fetched via the users module later.
- * For now, returns hardcoded list that matches the seeded departments.
+ * Fetch departments for the register and forgot password forms.
+ * Queries PostgreSQL via /departments with graceful fallback.
  */
 export async function getDepartments() {
+  try {
+    const response = await api.get('/departments');
+    if (response.data?.data?.departments && response.data.data.departments.length > 0) {
+      return response.data.data.departments;
+    }
+  } catch (_err) {
+    // Fallback if offline or endpoint unreachable
+  }
   return [
     { id: 'IT',    code: 'IT',    name: 'Information Technology' },
     { id: 'CSE',   code: 'CSE',   name: 'Computer Science & Engineering' },
@@ -47,3 +54,13 @@ export async function getDepartments() {
     { id: 'CIVIL', code: 'CIVIL', name: 'Civil Engineering' },
   ];
 }
+
+/**
+ * Reset password via email and department verification.
+ * @param {{ email: string, departmentId: string, newPassword: string, confirmPassword: string }} data
+ */
+export async function resetPassword(data) {
+  const response = await api.post('/auth/reset-password', data);
+  return response.data;
+}
+

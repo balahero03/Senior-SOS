@@ -4,7 +4,13 @@
 
 'use strict';
 
+const nodeCrypto = require('crypto');
+if (!global.crypto) {
+  global.crypto = nodeCrypto.webcrypto || nodeCrypto;
+}
+
 require('dotenv').config();
+
 
 const config = require('./config');
 const app = require('./app');

@@ -354,13 +354,13 @@ function LinkedInPostComposer({ user, onPostCreated }) {
         <button
           type="button"
           onClick={() => {
-            setTags('Mentorship, Guidance');
+            setTags('Guidance, Advice');
             setIsOpen(true);
           }}
           className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg font-semibold transition-colors"
         >
           <span className="text-[#5f9b41] text-base">🎓</span>
-          <span className="hidden sm:inline">Mentorship Q&A</span>
+          <span className="hidden sm:inline">Ask Campus</span>
         </button>
         <button
           type="button"
@@ -618,14 +618,6 @@ export default function DashboardPage() {
                     <span>Connections</span>
                     <span className="font-bold text-[#0a66c2] group-hover:underline">Manage</span>
                   </Link>
-
-                  <Link
-                    to="/mentorship"
-                    className="flex items-center justify-between py-1 text-slate-600 hover:text-[#0a66c2] transition-colors group"
-                  >
-                    <span>Mentorship Requests</span>
-                    <span className="font-bold text-[#0a66c2] group-hover:underline">Active</span>
-                  </Link>
                 </div>
 
                 {/* Saved Items */}
@@ -654,13 +646,6 @@ export default function DashboardPage() {
               >
                 <span className="text-base">🔍</span>
                 <span>Alumni Directory</span>
-              </Link>
-              <Link
-                to="/mentorship"
-                className="flex items-center gap-2.5 p-2 rounded-lg text-slate-700 hover:bg-slate-50 hover:text-[#0a66c2] transition-colors font-medium"
-              >
-                <span className="text-base">🎓</span>
-                <span>1-on-1 Mentorship</span>
               </Link>
               <Link
                 to="/network"
@@ -765,19 +750,19 @@ export default function DashboardPage() {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <Link to="/feed" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
+                  <Link to="/dashboard" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
                     • 2026 Campus Placement Trends
                   </Link>
                   <p className="text-[11px] text-slate-400 mt-0.5">3h ago • 1,420 readers</p>
                 </div>
                 <div>
-                  <Link to="/feed" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
+                  <Link to="/dashboard" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
                     • Amazon & Google Referral Drive
                   </Link>
                   <p className="text-[11px] text-slate-400 mt-0.5">6h ago • 2,890 readers</p>
                 </div>
                 <div>
-                  <Link to="/mentorship" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
+                  <Link to="/discover" className="font-bold text-slate-800 hover:text-[#0a66c2] transition-colors block leading-snug">
                     • Alumni AMA: Transitioning to AI/ML
                   </Link>
                   <p className="text-[11px] text-slate-400 mt-0.5">1d ago • 980 readers</p>
@@ -791,12 +776,12 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* People You May Know / Suggested Mentors */}
+            {/* People You May Know / Suggested Connections */}
             {recommendedAlumni.length > 0 && (
               <div className="feed-card p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-slate-900 text-sm">
-                    {isAlumni ? 'Talented Students to Mentor' : 'Alumni You May Know'}
+                    {isAlumni ? 'Students You May Know' : 'Alumni You May Know'}
                   </h3>
                 </div>
 

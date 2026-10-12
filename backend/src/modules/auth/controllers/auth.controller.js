@@ -6,7 +6,7 @@
 'use strict';
 
 const authService = require('../services/auth.service');
-const { registerSchema, loginSchema, validate } = require('../validators/auth.validator');
+const { registerSchema, loginSchema, resetPasswordSchema, validate } = require('../validators/auth.validator');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const config = require('../../../config');
 
@@ -143,5 +143,20 @@ const changePassword = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: result.message });
 });
 
-module.exports = { register, login, logout, refresh, me, changePassword };
+/**
+ * POST /api/auth/reset-password
+ * Body: { email, departmentId, newPassword, confirmPassword }
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { success, data, errors } = validate(resetPasswordSchema, req.body);
+  if (!success) {
+    return res.status(422).json({ success: false, errors });
+  }
+
+  const result = await authService.resetPasswordWithDepartment(data);
+  res.status(200).json({ success: true, message: result.message });
+});
+
+module.exports = { register, login, logout, refresh, me, changePassword, resetPassword };
+
 

@@ -286,7 +286,22 @@ const updateProfile = asyncHandler(async (req, res) => {
       if (bio !== undefined) academicData.bio = bio ? bio.trim() : null;
       if (careerInterests !== undefined) academicData.careerInterests = careerInterests ? careerInterests.trim() : null;
       if (graduationYear !== undefined) academicData.graduationYear = parseInt(graduationYear, 10);
-      if (departmentId) academicData.departmentId = departmentId;
+      if (departmentId) {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(departmentId);
+        if (isUuid) {
+          academicData.departmentId = departmentId;
+        } else {
+          const dept = await tx.department.findFirst({
+            where: {
+              OR: [
+                { code: departmentId.toUpperCase().trim() },
+                { name: { equals: departmentId.trim(), mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (dept) academicData.departmentId = dept.id;
+        }
+      }
 
       const existingAcademic = await tx.academicProfile.findUnique({
         where: { userId },
@@ -299,13 +314,13 @@ const updateProfile = asyncHandler(async (req, res) => {
         });
       } else {
         // Must provide departmentId and graduationYear on initial creation
-        if (!departmentId || !graduationYear) {
+        if (!academicData.departmentId || !graduationYear) {
           throw new AppError('departmentId and graduationYear are required to initialize academic profile', 400, 'VALIDATION_ERROR');
         }
         await tx.academicProfile.create({
           data: {
             userId,
-            departmentId,
+            departmentId: academicData.departmentId,
             graduationYear: parseInt(graduationYear, 10),
             bio: academicData.bio || null,
             careerInterests: academicData.careerInterests || null,
@@ -334,7 +349,10 @@ const updateProfile = asyncHandler(async (req, res) => {
         if (resolvedCompanyId !== undefined) alumniData.companyId = resolvedCompanyId;
         if (designation !== undefined) alumniData.designation = designation ? designation.trim() : null;
         if (experienceYears !== undefined) {
-          alumniData.experienceYears = experienceYears !== null ? parseFloat(experienceYears) : null;
+          alumniData.experienceYears =
+            experienceYears !== null && experienceYears !== '' && !isNaN(parseFloat(experienceYears))
+              ? parseFloat(experienceYears)
+              : null;
         }
 
         const existingAlumni = await tx.alumniProfile.findUnique({
@@ -365,7 +383,7 @@ const updateProfile = asyncHandler(async (req, res) => {
       const resolvedSkillEntries = [];
 
       for (const item of skills) {
-        const rawName = typeof item === 'string' ? item : item?.name;
+        const rawName = typeof item === 'string' ? item : (item?.name || item?.skillName);
         if (!rawName || !rawName.trim()) continue;
 
         const cleanSkillName = rawName.trim();
@@ -440,8 +458,26 @@ const updateProfile = asyncHandler(async (req, res) => {
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
-        academicProfile: updatedUser.academicProfile,
-        alumniProfile: updatedUser.alumniProfile,
+        academicProfile: updatedUser.academicProfile
+          ? {
+              departmentId: updatedUser.academicProfile.departmentId,
+              departmentCode: updatedUser.academicProfile.department?.code || null,
+              departmentName: updatedUser.academicProfile.department?.name || null,
+              graduationYear: updatedUser.academicProfile.graduationYear,
+              bio: updatedUser.academicProfile.bio,
+              careerInterests: updatedUser.academicProfile.careerInterests,
+            }
+          : null,
+        alumniProfile:
+          updatedUser.role === 'ALUMNI' && updatedUser.alumniProfile
+            ? {
+                companyId: updatedUser.alumniProfile.companyId,
+                companyName: updatedUser.alumniProfile.company?.name || null,
+                designation: updatedUser.alumniProfile.designation,
+                experienceYears: updatedUser.alumniProfile.experienceYears,
+                verificationStatus: updatedUser.alumniProfile.verificationStatus,
+              }
+            : null,
         skills: updatedUser.userSkills.map((us) => ({
           skillId: us.skillId,
           name: us.skill.name,
