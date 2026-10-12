@@ -5,7 +5,7 @@
 
 ---
 
-## 📌 The Problem We Are Solving
+##  The Problem We Are Solving
 
 As college students, we frequently run into questions like:
 - *"Who from our college is currently working at Google or Amazon?"*
@@ -21,7 +21,7 @@ On global platforms like LinkedIn, reaching out to working professionals usually
 
 ---
 
-## 💡 What Makes SeniorSOS Special?
+##  What Makes SeniorSOS Special?
 
 - **Campus-First Trust:** Only people with verified college affiliations can join. Alumni must have their company credentials approved by an Admin.
 - **Search & Discovery Hub:** Filter seniors by specific target companies (e.g., *Amazon*, *Zoho*), departments (*CSE*, *IT*, *ECE*), or skills (*React*, *Docker*, *Node.js*).
@@ -33,7 +33,7 @@ On global platforms like LinkedIn, reaching out to working professionals usually
 
 ---
 
-## 🏗️ Architecture in Plain English
+## 🏗️ Architecture 
 
 Rather than building a messy monolithic app or an overly complicated microservices setup that would slow down development, we built SeniorSOS as a **Modular Monolith**:
 
@@ -83,7 +83,7 @@ We use a **Polyglot Persistence** approach because different features have compl
 
 ---
 
-## 🚀 How to Run the Project Locally
+##  How to Run the Project Locally
 
 ### Prerequisites
 Make sure you have installed on your machine:
@@ -155,7 +155,7 @@ Frontend will be live at: `http://localhost:5173`
 
 ---
 
-## 🧪 Testing & Quality Assurance
+##  Testing & Quality Assurance
 
 1. **Unit & Validation Tests:** Every registration, login, and profile update payload is validated using strict **Zod** schemas before hitting the database.
 2. **API & Error Handling Tests:** Custom `AppError` class catches operational exceptions. Asynchronous controllers use `asyncHandler` to forward rejected Promises to a central Express error middleware.
@@ -164,7 +164,7 @@ Frontend will be live at: `http://localhost:5173`
 
 ---
 
-## 🔮 Future Roadmap (Planned for Final Review & End-Sem Lab)
+##  Future Roadmap (Planned for Final Review & End-Sem Lab)
 
 For our upcoming final semester practical demonstration, we plan to take the project to the next level:
 
@@ -181,15 +181,4 @@ To demonstrate production-grade deployment skills, we are building a Kubernetes 
 - **Stateful Database Tier:** Running PostgreSQL, MongoDB, and Neo4j as K8s `StatefulSets` backed by `PersistentVolumeClaims (PVCs)`.
 - **Redis Pub/Sub Scaling:** Using a Redis instance so that multiple backend pod replicas can broadcast real-time Socket.IO chat messages to each other seamlessly.
 
----
 
-## 👥 The Team
-
-Developed with ❤️ by college students for our campus community:
-- **Bala** 
-- **Oviya T S**
-- **Nivedhaa Sai S**
-
----
-
-⭐ *If you're an alumnus or student from our college, feel free to contribute or raise an issue!*
