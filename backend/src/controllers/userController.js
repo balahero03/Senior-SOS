@@ -504,6 +504,7 @@ const getUsers = asyncHandler(async (req, res) => {
 
   const {
     role,
+    status,
     departmentId,
     companyId,
     skillId,
@@ -512,21 +513,26 @@ const getUsers = asyncHandler(async (req, res) => {
     verifiedOnly,
   } = req.query;
 
-  // Base user filter: only ACTIVE users
-  const where = {
-    status: 'ACTIVE',
-  };
-
-  // Role filter: exclude ADMIN from student/alumni discovery
   const requesterRole = req.user?.role;
-  if (requesterRole !== 'ADMIN') {
+  const where = {};
+
+  // Status & Role filtering
+  if (requesterRole === 'ADMIN') {
+    // Admin can view both ACTIVE and SUSPENDED users, or filter by specific status
+    if (status && ['ACTIVE', 'SUSPENDED'].includes(status)) {
+      where.status = status;
+    }
+    if (role && ['STUDENT', 'ALUMNI', 'ADMIN'].includes(role)) {
+      where.role = role;
+    }
+  } else {
+    // Regular students/alumni can only discover ACTIVE users, never ADMINs
+    where.status = 'ACTIVE';
     if (role && ['STUDENT', 'ALUMNI'].includes(role)) {
       where.role = role;
     } else {
       where.role = { in: ['STUDENT', 'ALUMNI'] };
     }
-  } else if (role && ['STUDENT', 'ALUMNI', 'ADMIN'].includes(role)) {
-    where.role = role;
   }
 
   // Academic profile filters
@@ -605,7 +611,7 @@ const getUsers = asyncHandler(async (req, res) => {
   });
 
   const hiddenUserIds = privateSettings.map((s) => s.userId);
-  if (hiddenUserIds.length > 0) {
+  if (requesterRole !== 'ADMIN' && hiddenUserIds.length > 0) {
     where.id = { notIn: hiddenUserIds };
   }
 
@@ -619,6 +625,7 @@ const getUsers = asyncHandler(async (req, res) => {
       select: {
         id: true,
         name: true,
+        email: true,
         role: true,
         status: true,
         createdAt: true,
@@ -687,6 +694,7 @@ const getUsers = asyncHandler(async (req, res) => {
     return {
       id: user.id,
       name: user.name,
+      email: user.email,
       role: user.role,
       status: user.status,
       department: user.academicProfile?.department?.code || null,

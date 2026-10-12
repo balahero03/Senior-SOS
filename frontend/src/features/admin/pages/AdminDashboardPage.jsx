@@ -39,6 +39,7 @@ export default function AdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [verificationSearch, setVerificationSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
@@ -71,6 +72,7 @@ export default function AdminDashboardPage() {
         const params = { page, limit: 10 };
         if (searchQuery.trim()) params.q = searchQuery.trim();
         if (roleFilter) params.role = roleFilter;
+        if (statusFilter) params.status = statusFilter;
 
         const data = await getUsersList(params);
         setUsers(data?.users || []);
@@ -81,7 +83,7 @@ export default function AdminDashboardPage() {
         console.error('Failed to load users list:', err);
       }
     },
-    [searchQuery, roleFilter]
+    [searchQuery, roleFilter, statusFilter]
   );
 
   useEffect(() => {
@@ -556,18 +558,33 @@ export default function AdminDashboardPage() {
                 </button>
               </form>
 
-              <div className="w-full md:w-auto flex items-center gap-3">
-                <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter Role:</label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="">All Roles</option>
-                  <option value="STUDENT">Students</option>
-                  <option value="ALUMNI">Alumni</option>
-                  <option value="ADMIN">Admins</option>
-                </select>
+              <div className="w-full md:w-auto flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Role:</label>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">All Roles</option>
+                    <option value="STUDENT">Students</option>
+                    <option value="ALUMNI">Alumni</option>
+                    <option value="ADMIN">Admins</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Status:</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="SUSPENDED">Suspended Only</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -578,10 +595,10 @@ export default function AdminDashboardPage() {
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                       <th className="py-3.5 px-6">User</th>
-                      <th className="py-3.5 px-6">Role</th>
+                      <th className="py-3.5 px-6">Role & Credential</th>
                       <th className="py-3.5 px-6">Department / Affiliation</th>
                       <th className="py-3.5 px-6">Status</th>
-                      <th className="py-3.5 px-6 text-right">Actions</th>
+                      <th className="py-3.5 px-6 text-right">Moderation Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
@@ -602,36 +619,55 @@ export default function AdminDashboardPage() {
                             {/* User details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">
+                                <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
                                   {u.name?.charAt(0).toUpperCase() || 'U'}
                                 </div>
-                                <div>
-                                  <div className="font-semibold text-slate-900 flex items-center gap-2">
-                                    {u.name}
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-900 flex items-center gap-2 truncate">
+                                    <span>{u.name}</span>
                                     {isSelf && (
                                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                                         You
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-xs text-slate-500">{u.email}</div>
+                                  <div className="text-xs text-slate-500 truncate">{u.email}</div>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Role */}
+                            {/* Role & Credential */}
                             <td className="py-4 px-6">
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                  u.role === 'ADMIN'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                    : u.role === 'ALUMNI'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                }`}
-                              >
-                                {u.role}
-                              </span>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                    u.role === 'ADMIN'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      : u.role === 'ALUMNI'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  }`}
+                                >
+                                  {u.role}
+                                </span>
+                                {u.role === 'ALUMNI' && (
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                      u.verificationStatus === 'APPROVED'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : u.verificationStatus === 'PENDING'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-slate-50 text-slate-500 border-slate-200'
+                                    }`}
+                                  >
+                                    {u.verificationStatus === 'APPROVED'
+                                      ? '✓ Verified Mentor'
+                                      : u.verificationStatus === 'PENDING'
+                                      ? '⏳ Pending Review'
+                                      : 'Unverified'}
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Affiliation */}

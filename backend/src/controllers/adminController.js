@@ -244,6 +244,14 @@ const updateUserStatus = asyncHandler(async (req, res) => {
       },
     });
 
+    // If suspended, invalidate all active session tokens immediately
+    if (status === 'SUSPENDED') {
+      await tx.refreshToken.updateMany({
+        where: { userId: targetUserId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+
     const auditLog = await tx.auditLog.create({
       data: {
         actorId: adminId,
@@ -258,6 +266,20 @@ const updateUserStatus = asyncHandler(async (req, res) => {
     });
 
     return { updatedUser, auditLog };
+  });
+
+  // Notify the user about their account status change
+  await createNotification({
+    recipientId: targetUserId,
+    actorId: adminId,
+    type: status === 'SUSPENDED' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_REACTIVATED',
+    payload: {
+      status,
+      message:
+        status === 'SUSPENDED'
+          ? 'Your account has been suspended by campus administration. Contact support if you believe this is an error.'
+          : 'Your SeniorSOS account has been reactivated. You now have full access restored.',
+    },
   });
 
   res.json({
