@@ -46,11 +46,4 @@ BEGIN
       RAISE EXCEPTION 'Neither "MentorshipFrequency" nor mentorship_frequency exists in the current schema';
     END IF;
   END IF;
-  IF to_regtype('referral_status') IS NULL THEN
-    IF to_regtype('"ReferralStatus"') IS NOT NULL THEN
-      ALTER TYPE "ReferralStatus" RENAME TO referral_status;
-    ELSE
-      RAISE EXCEPTION 'Neither "ReferralStatus" nor referral_status exists in the current schema';
-    END IF;
-  END IF;
 END $$;

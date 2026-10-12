@@ -5,11 +5,8 @@
   - The `status` column on the `connection_requests` table would be dropped and recreated. This will lead to data loss if there is data in the column.
   - The `frequency` column on the `mentorship_requests` table would be dropped and recreated. This will lead to data loss if there is data in the column.
   - The `status` column on the `mentorship_requests` table would be dropped and recreated. This will lead to data loss if there is data in the column.
-  - The `status` column on the `referral_requests` table would be dropped and recreated. This will lead to data loss if there is data in the column.
-  - The `old_status` column on the `referral_status_history` table would be dropped and recreated. This will lead to data loss if there is data in the column.
   - The `role` column on the `users` table would be dropped and recreated. This will lead to data loss if there is data in the column.
   - The `status` column on the `users` table would be dropped and recreated. This will lead to data loss if there is data in the column.
-  - Changed the type of `new_status` on the `referral_status_history` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
 
 */
 -- CreateEnum
@@ -30,8 +27,6 @@ CREATE TYPE "MentorshipStatus" AS ENUM ('PENDING', 'ACTIVE', 'REJECTED', 'CANCEL
 -- CreateEnum
 CREATE TYPE "MentorshipFrequency" AS ENUM ('ONE_TIME', 'WEEKLY', 'MONTHLY');
 
--- CreateEnum
-CREATE TYPE "ReferralStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'REFERRED', 'INTERVIEW', 'COMPLETED', 'CANCELLED');
 
 -- DropForeignKey
 ALTER TABLE "academic_profiles" DROP CONSTRAINT "academic_profiles_department_id_fkey";
@@ -72,20 +67,6 @@ ALTER TABLE "notifications" DROP CONSTRAINT "notifications_actor_id_fkey";
 -- DropForeignKey
 ALTER TABLE "notifications" DROP CONSTRAINT "notifications_recipient_id_fkey";
 
--- DropForeignKey
-ALTER TABLE "referral_requests" DROP CONSTRAINT "referral_requests_alumni_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "referral_requests" DROP CONSTRAINT "referral_requests_company_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "referral_requests" DROP CONSTRAINT "referral_requests_student_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "referral_status_history" DROP CONSTRAINT "referral_status_history_changed_by_fkey";
-
--- DropForeignKey
-ALTER TABLE "referral_status_history" DROP CONSTRAINT "referral_status_history_referral_id_fkey";
 
 -- DropForeignKey
 ALTER TABLE "refresh_tokens" DROP CONSTRAINT "refresh_tokens_user_id_fkey";
@@ -116,17 +97,6 @@ ADD COLUMN     "status" "MentorshipStatus" NOT NULL DEFAULT 'PENDING',
 ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "referral_requests" DROP COLUMN "status",
-ADD COLUMN     "status" "ReferralStatus" NOT NULL DEFAULT 'PENDING',
-ALTER COLUMN "updated_at" DROP DEFAULT;
-
--- AlterTable
-ALTER TABLE "referral_status_history" DROP COLUMN "old_status",
-ADD COLUMN     "old_status" "ReferralStatus",
-DROP COLUMN "new_status",
-ADD COLUMN     "new_status" "ReferralStatus" NOT NULL;
-
--- AlterTable
 ALTER TABLE "user_settings" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
@@ -144,9 +114,6 @@ DROP TYPE "mentorship_frequency";
 
 -- DropEnum
 DROP TYPE "mentorship_status";
-
--- DropEnum
-DROP TYPE "referral_status";
 
 -- DropEnum
 DROP TYPE "request_status";
@@ -168,12 +135,6 @@ CREATE INDEX "idx_mentorship_mentor_status" ON "mentorship_requests"("mentor_id"
 
 -- CreateIndex
 CREATE INDEX "idx_mentorship_mentee_status" ON "mentorship_requests"("mentee_id", "status");
-
--- CreateIndex
-CREATE INDEX "idx_referrals_student_status" ON "referral_requests"("student_id", "status");
-
--- CreateIndex
-CREATE INDEX "idx_referrals_alumni_status" ON "referral_requests"("alumni_id", "status");
 
 -- AddForeignKey
 ALTER TABLE "academic_profiles" ADD CONSTRAINT "academic_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -210,21 +171,6 @@ ALTER TABLE "mentorship_requests" ADD CONSTRAINT "mentorship_requests_mentee_id_
 
 -- AddForeignKey
 ALTER TABLE "mentorship_requests" ADD CONSTRAINT "mentorship_requests_mentor_id_fkey" FOREIGN KEY ("mentor_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "referral_requests" ADD CONSTRAINT "referral_requests_student_id_fkey" FOREIGN KEY ("student_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "referral_requests" ADD CONSTRAINT "referral_requests_alumni_id_fkey" FOREIGN KEY ("alumni_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "referral_requests" ADD CONSTRAINT "referral_requests_company_id_fkey" FOREIGN KEY ("company_id") REFERENCES "companies"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "referral_status_history" ADD CONSTRAINT "referral_status_history_referral_id_fkey" FOREIGN KEY ("referral_id") REFERENCES "referral_requests"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "referral_status_history" ADD CONSTRAINT "referral_status_history_changed_by_fkey" FOREIGN KEY ("changed_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_recipient_id_fkey" FOREIGN KEY ("recipient_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

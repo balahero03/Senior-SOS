@@ -7,7 +7,7 @@ This document explains the proposed repository layout for SeniorSOS: what each f
 Keep the project as a **modular monolith**:
 
 - There is one backend application and one backend deployment.
-- Backend code is split into business modules such as auth, profiles, networking, and referrals.
+- Backend code is split into business modules such as auth, profiles, networking, and mentorship.
 - Each module owns its routes, controllers, business services, validation, and repositories.
 - Database connection setup belongs in shared infrastructure folders.
 - A module uses the store that fits its data: PostgreSQL for structured transactions, MongoDB for flexible content, Neo4j for relationship queries, and Redis for fast temporary/shared state.
@@ -149,7 +149,7 @@ Reusable UI that is not owned by one business feature.
 - `layout/`: application shell, header, sidebar, navigation, responsive layout.
 - `forms/`: truly shared form fields or form primitives.
 
-If a component only makes sense for one feature (for example, a referral status timeline), keep it inside that feature instead of making a general component folder a dumping ground.
+If a component only makes sense for one feature, keep it inside that feature instead of making a general component folder a dumping ground.
 
 ### `frontend/src/features/`
 
@@ -157,7 +157,7 @@ Feature-first frontend code. Each feature can own its components, API functions,
 
 ```text
 features/
-└── referrals/
+└── mentorship/
     ├── api.js
     ├── components/
     ├── hooks/
@@ -172,7 +172,6 @@ Existing feature folders:
 - `discover/`: people search, filters, recommended alumni.
 - `network/`: requests, connections, mutuals, path/network graph UI.
 - `messages/`: conversations, message list/composer, online/typing status UI.
-- `referrals/`: referral list, create form, status/details.
 - `mentorship/`: mentor discovery, requests, mentor/mentee views.
 - `community/`: feed, posts, comments, reactions, reporting.
 - `notifications/`: notification list, unread state, preferences UI.
@@ -272,10 +271,6 @@ Connection request lifecycle and graph operations: send/accept/reject requests, 
 
 Community posts, comments, reactions, visibility, and reports. MongoDB is the planned flexible-content store. Authorization must enforce College/Connections visibility.
 
-#### `modules/referrals/`
-
-Referral creation, recipient actions, status transitions, documents/metadata, and notifications. PostgreSQL is the planned transactional store. Keep allowed state transitions in the service layer.
-
 #### `modules/mentorship/`
 
 Mentorship requests, accept/reject, preferences, mentor/mentee relationships, and discovery criteria. PostgreSQL owns requests; Neo4j may represent accepted mentorship edges for graph queries if needed.
@@ -317,7 +312,7 @@ Place tests near the owning backend package if the team later chooses a colocate
 
 ### PostgreSQL + Prisma
 
-Authoritative transactional data: users, roles, structured profiles, referral requests, mentorship requests, durable notifications, and audit logs. Use foreign keys and transactions for related updates.
+Authoritative transactional data: users, roles, structured profiles, mentorship requests, durable notifications, and audit logs. Use foreign keys and transactions for related updates.
 
 ### MongoDB + Mongoose
 
@@ -329,7 +324,7 @@ Relationship graph: user connection edges, mentorship edges if required, company
 
 ### Redis
 
-Temporary or fast coordination data: cache, presence, rate limiting, and Socket.io cross-pod Pub/Sub. Do not treat Redis Pub/Sub as the permanent store for messages, referrals, or notifications.
+Temporary or fast coordination data: cache, presence, rate limiting, and Socket.io cross-pod Pub/Sub. Do not treat Redis Pub/Sub as the permanent store for messages or notifications.
 
 ### Shared identity and cross-database writes
 
@@ -385,7 +380,7 @@ Local setup, environment-variable list, common commands, troubleshooting, contri
 
 ## 9. Naming and placement rules
 
-1. Put code next to its owner. A referral status component belongs in the referrals feature; referral transition rules belong in the backend referral service.
+1. Put code next to its owner. Feature-specific components belong with their feature; business rules belong in the corresponding backend service.
 2. Keep HTTP concerns in routes/controllers, business rules in services, and persistence queries in repositories.
 3. Keep database connection setup centralized in `database/`; do not create database connections inside controllers.
 4. Do not have a route call a Prisma/Mongoose/Neo4j client directly.

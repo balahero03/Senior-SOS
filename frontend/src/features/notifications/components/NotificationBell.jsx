@@ -76,10 +76,6 @@ export default function NotificationBell() {
       case 'MENTORSHIP_STATUS_UPDATED':
         navigate('/mentorship');
         break;
-      case 'REFERRAL_REQUEST_RECEIVED':
-      case 'REFERRAL_STATUS_UPDATED':
-        navigate('/referrals');
-        break;
       case 'POST_COMMENT_RECEIVED':
         navigate('/feed');
         break;
@@ -99,10 +95,6 @@ export default function NotificationBell() {
         return `${actorName} requested mentorship: "${notif.payload?.focusArea || ''}"`;
       case 'MENTORSHIP_STATUS_UPDATED':
         return `Mentorship status updated to ${notif.payload?.newStatus || ''}`;
-      case 'REFERRAL_REQUEST_RECEIVED':
-        return `${actorName} requested a referral for ${notif.payload?.jobTitle || 'a job'}`;
-      case 'REFERRAL_STATUS_UPDATED':
-        return `Referral status updated to ${notif.payload?.newStatus || ''}`;
       case 'POST_COMMENT_RECEIVED':
         return `${actorName} commented on your post`;
       default:
@@ -118,9 +110,6 @@ export default function NotificationBell() {
       case 'MENTORSHIP_REQUEST_RECEIVED':
       case 'MENTORSHIP_STATUS_UPDATED':
         return '🎓';
-      case 'REFERRAL_REQUEST_RECEIVED':
-      case 'REFERRAL_STATUS_UPDATED':
-        return '💼';
       case 'POST_COMMENT_RECEIVED':
         return '💬';
       default:

@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const modules = [
     { tag: 'DB', status: '✓ Live', title: 'Identity & Auth', description: 'PostgreSQL: Users, roles, academic/alumni profiles, httpOnly JWT auth.' },
     { tag: 'CM', status: '✓ Live', title: 'Content & Chat', description: 'MongoDB: Posts, comments, reactions, conversations, and messages.', to: '/feed' },
-    { tag: 'NG', status: 'Coming Soon', title: 'Network Graph', description: 'Neo4j: Multi-hop connection paths and alumni referral pathways.' },
+    { tag: 'NG', status: 'Coming Soon', title: 'Network Graph', description: 'Neo4j: Multi-hop connection paths between alumni and students.' },
     { tag: 'RC', status: 'Coming Soon', title: 'Redis Cache', description: 'In-memory cache for sessions, rate-limiting, and WebSocket events.' },
   ];
 
@@ -33,7 +33,7 @@ export default function DashboardPage() {
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600 sm:text-base">
               {user?.role === 'STUDENT'
-                ? 'Connect with alumni mentors, explore career guidance, and get referred to top tech opportunities.'
+                ? 'Connect with alumni mentors and explore career guidance from your college network.'
                 : 'Share your professional expertise, mentor rising students, and help top talent from your alma mater.'}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">

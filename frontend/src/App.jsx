@@ -11,7 +11,6 @@ import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
 import MentorshipPage from './features/mentorship/pages/MentorshipPage';
-import ReferralsPage from './features/referrals/pages/ReferralsPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
@@ -61,14 +60,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <MentorshipPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/referrals"
-          element={
-            <ProtectedRoute>
-              <ReferralsPage />
             </ProtectedRoute>
           }
         />

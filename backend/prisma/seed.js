@@ -56,7 +56,6 @@ async function main() {
     connection_requests: true,
     messages: true,
     mentorship_requests: true,
-    referral_updates: true,
     community_activity: false,
   };
 

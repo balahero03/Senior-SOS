@@ -19,9 +19,6 @@ CREATE TYPE "verification_status" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE "request_status" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED');
 CREATE TYPE "mentorship_status" AS ENUM ('PENDING', 'ACTIVE', 'REJECTED', 'CANCELLED', 'ENDED');
 CREATE TYPE "mentorship_frequency" AS ENUM ('ONE_TIME', 'WEEKLY', 'MONTHLY');
-CREATE TYPE "referral_status" AS ENUM (
-  'PENDING', 'ACCEPTED', 'REJECTED', 'REFERRED', 'INTERVIEW', 'COMPLETED', 'CANCELLED'
-);
 
 -- ─── Users ────────────────────────────────────────────────────────────────────
 CREATE TABLE "users" (
@@ -160,44 +157,6 @@ CREATE UNIQUE INDEX "uq_open_mentorship"
 CREATE INDEX "idx_mentorship_mentor_status" ON "mentorship_requests"("mentor_id", "status");
 CREATE INDEX "idx_mentorship_mentee_status" ON "mentorship_requests"("mentee_id", "status");
 
--- ─── Referrals ────────────────────────────────────────────────────────────────
-CREATE TABLE "referral_requests" (
-  "id"         UUID              PRIMARY KEY DEFAULT gen_random_uuid(),
-  "student_id" UUID              NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-  "alumni_id"  UUID              NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-  "company_id" UUID              NOT NULL REFERENCES "companies"("id"),
-  "job_title"  VARCHAR(200)      NOT NULL,
-  "job_url"    TEXT,
-  "reason"     TEXT,
-  "message"    TEXT,
-  "resume_url" TEXT,
-  "status"     "referral_status" NOT NULL DEFAULT 'PENDING',
-  "created_at" TIMESTAMPTZ(6)   NOT NULL DEFAULT NOW(),
-  "updated_at" TIMESTAMPTZ(6)   NOT NULL DEFAULT NOW(),
-  CHECK ("student_id" <> "alumni_id")
-);
-
--- No duplicate open referral for the same student, alumnus, company and job.
--- Expression + partial — Prisma cannot express this.
-CREATE UNIQUE INDEX "uq_open_referral"
-  ON "referral_requests" ("student_id", "alumni_id", "company_id", LOWER("job_title"))
-  WHERE "status" IN ('PENDING', 'ACCEPTED', 'REFERRED', 'INTERVIEW');
-
-CREATE INDEX "idx_referrals_student_status" ON "referral_requests"("student_id", "status");
-CREATE INDEX "idx_referrals_alumni_status"  ON "referral_requests"("alumni_id",  "status");
-
-CREATE TABLE "referral_status_history" (
-  "id"          UUID              PRIMARY KEY DEFAULT gen_random_uuid(),
-  "referral_id" UUID              NOT NULL REFERENCES "referral_requests"("id") ON DELETE CASCADE,
-  "old_status"  "referral_status",
-  "new_status"  "referral_status" NOT NULL,
-  "changed_by"  UUID              REFERENCES "users"("id") ON DELETE SET NULL,
-  "note"        TEXT,
-  "created_at"  TIMESTAMPTZ(6)   NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX "idx_referral_history" ON "referral_status_history"("referral_id", "created_at");
-
 -- ─── Notifications ────────────────────────────────────────────────────────────
 CREATE TABLE "notifications" (
   "id"           UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -219,7 +178,7 @@ CREATE TABLE "user_settings" (
     CHECK ("profile_visibility" IN ('COLLEGE', 'CONNECTIONS_ONLY')),
   "notification_preferences" JSONB        NOT NULL DEFAULT
     '{"connection_requests":true,"messages":true,"mentorship_requests":true,
-      "referral_updates":true,"community_activity":false}'::JSONB,
+      "community_activity":false}'::JSONB,
   "updated_at"               TIMESTAMPTZ(6) NOT NULL DEFAULT NOW()
 );
 
