@@ -126,14 +126,26 @@ export default function NotificationBell() {
           setIsOpen(!isOpen);
           if (!isOpen) fetchUnread();
         }}
-        className="relative p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors"
+        className={`relative flex flex-col items-center justify-center min-w-[60px] sm:min-w-[64px] h-14 px-1 text-slate-500 hover:text-slate-900 transition-colors group ${
+          isOpen ? 'text-[#0a66c2] font-semibold' : ''
+        }`}
         title="Notifications"
       >
-        <span className="text-lg">🔔</span>
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-blue-600 rounded-full shadow-sm animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+        <div className="relative">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
+          </svg>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-2 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-black text-white bg-red-600 rounded-full shadow-xs">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </div>
+        <span className="text-[11px] mt-0.5 tracking-tight whitespace-nowrap leading-tight">
+          Notifications
+        </span>
+        {isOpen && (
+          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#0a66c2] rounded-t-full" />
         )}
       </button>
 
