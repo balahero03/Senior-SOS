@@ -16,7 +16,7 @@ export const updatePrivacy = (profileVisibility) =>
 
 /**
  * Update user notification preferences.
- * @param {object} notificationPreferences - e.g. { connection_requests, mentorship_requests, referral_updates, messages, community_activity }
+ * @param {object} notificationPreferences - connection, mentorship, message, and community preferences
  */
 export const updateNotificationPreferences = (notificationPreferences) =>
   api.put('/settings/notifications', { notificationPreferences }).then((r) => r.data.data.settings);

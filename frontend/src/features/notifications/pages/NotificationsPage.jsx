@@ -75,10 +75,6 @@ export default function NotificationsPage() {
       case 'MENTORSHIP_STATUS_UPDATED':
         navigate('/mentorship');
         break;
-      case 'REFERRAL_REQUEST_RECEIVED':
-      case 'REFERRAL_STATUS_UPDATED':
-        navigate('/referrals');
-        break;
       case 'POST_COMMENT_RECEIVED':
         navigate('/feed');
         break;
@@ -98,10 +94,6 @@ export default function NotificationsPage() {
         return `${actorName} requested mentorship: "${notif.payload?.focusArea || ''}"`;
       case 'MENTORSHIP_STATUS_UPDATED':
         return `Mentorship status updated to ${notif.payload?.newStatus || ''}`;
-      case 'REFERRAL_REQUEST_RECEIVED':
-        return `${actorName} requested a referral for ${notif.payload?.jobTitle || 'a job'}`;
-      case 'REFERRAL_STATUS_UPDATED':
-        return `Referral status updated to ${notif.payload?.newStatus || ''}`;
       case 'POST_COMMENT_RECEIVED':
         return `${actorName} commented on your post: "${notif.payload?.contentSnippet || ''}"`;
       default:
@@ -117,9 +109,6 @@ export default function NotificationsPage() {
       case 'MENTORSHIP_REQUEST_RECEIVED':
       case 'MENTORSHIP_STATUS_UPDATED':
         return '🎓';
-      case 'REFERRAL_REQUEST_RECEIVED':
-      case 'REFERRAL_STATUS_UPDATED':
-        return '💼';
       case 'POST_COMMENT_RECEIVED':
         return '💬';
       default:
@@ -253,7 +242,7 @@ export default function NotificationsPage() {
               {activeTab === 'unread' ? 'No unread notifications' : 'No notifications yet'}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              You are all caught up! New requests, referrals, and connection notices will appear here.
+              You are all caught up! New connection and mentorship updates will appear here.
             </p>
           </div>
         ) : (

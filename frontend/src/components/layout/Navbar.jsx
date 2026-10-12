@@ -9,7 +9,6 @@ const navigation = [
   { to: '/discover', label: 'Discover', icon: 'discover' },
   { to: '/network', label: 'My network', icon: 'network' },
   { to: '/mentorship', label: 'Mentorship', icon: 'mentorship' },
-  { to: '/referrals', label: 'Referrals', icon: 'referrals' },
   { to: '/feed', label: 'Community', icon: 'community' },
   { to: '/messages', label: 'Messages', icon: 'messages' },
 ];

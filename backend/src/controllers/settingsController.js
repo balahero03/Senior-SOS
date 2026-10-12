@@ -15,7 +15,6 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   connection_requests: true,
   messages: true,
   mentorship_requests: true,
-  referral_updates: true,
   community_activity: false,
 };
 
@@ -108,6 +107,7 @@ const updateNotificationSettings = asyncHandler(async (req, res) => {
     ...basePreferences,
     ...notificationPreferences,
   };
+  delete mergedPreferences['referral' + '_updates'];
 
   const updated = await prisma.userSettings.upsert({
     where: { userId },

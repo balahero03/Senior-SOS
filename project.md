@@ -5,15 +5,15 @@
 ## 1. Project identity
 
 **Name:** SeniorSOS  
-**Type:** College-centric professional networking, alumni connection, mentorship, career guidance, and referral platform.
+**Type:** College-centric professional networking, alumni connection, mentorship, and career guidance platform.
 
 ### One-line definition
 
-> SeniorSOS is a college-centric professional networking platform that connects students with verified alumni for mentorship, networking, career guidance, and job referrals.
+> SeniorSOS is a college-centric professional networking platform that connects students with verified alumni for mentorship, networking, and career guidance.
 
 ### Short explanation
 
-SeniorSOS is similar in spirit to LinkedIn + an alumni network + a mentorship and referral system, focused on one college community. Its purpose is to help a student find someone from their own college who can help them.
+SeniorSOS is similar in spirit to LinkedIn + an alumni network + a mentorship system, focused on one college community. Its purpose is to help a student find someone from their own college who can help them.
 
 ### Product positioning
 
@@ -21,7 +21,7 @@ SeniorSOS should feel like a focused career networking product, not a generic so
 
 If asked how SeniorSOS differs from LinkedIn:
 
-> LinkedIn is a global professional network, whereas SeniorSOS focuses on trusted, college-specific professional connections. It helps students discover alumni, understand how they are connected, request mentorship and referrals, and communicate with them within a verified academic community.
+> LinkedIn is a global professional network, whereas SeniorSOS focuses on trusted, college-specific professional connections. It helps students discover alumni, understand how they are connected, request mentorship, and communicate with them within a verified academic community.
 
 Do not describe the product's USP only in terms of Neo4j or Kubernetes; those are implementation choices, not the user problem being solved.
 
@@ -32,7 +32,6 @@ Do not describe the product's USP only in terms of Neo4j or Kubernetes; those ar
 Students often need help with questions such as:
 
 - How do I prepare for Amazon?
-- Can someone refer me for an internship?
 - Which company is hiring?
 - I want to learn backend development. Who can guide me?
 - Does anyone from our college work at Microsoft?
@@ -47,7 +46,6 @@ The college's alumni network may already include people who can help, but studen
 - Show mutual connections and paths through which a student can reach an alumnus.
 - Support connection requests and professional chat.
 - Support structured mentorship requests and relationships.
-- Support referral requests and status tracking.
 - Provide a trusted community through alumni verification, user management, moderation, and reporting.
 - Give alumni a way to share career experience and opportunities.
 
@@ -64,10 +62,10 @@ Create profile
   → See mutual connections
   → Send connection request
   → Chat after connection
-  → Ask for mentorship or a referral
+  → Ask for mentorship
 ```
 
-Students can maintain a profile, discover alumni by company/skills/department, connect, chat, request mentorship, submit referral requests, and participate in the community.
+Students can maintain a profile, discover alumni by company/skills/department, connect, chat, request mentorship, and participate in the community.
 
 ### Alumni
 
@@ -78,11 +76,10 @@ Create professional profile
   → Connect with students and alumni
   → Share career experience
   → Mentor students
-  → Respond to referral requests
   → Chat with connections
 ```
 
-Alumni can maintain professional information, build connections, publish posts, mentor students, and accept or reject mentorship and referral requests. Alumni verification is part of establishing trust.
+Alumni can maintain professional information, build connections, publish posts, and mentor students. Alumni verification is part of establishing trust.
 
 ### Admin
 
@@ -98,12 +95,10 @@ Example: Bala wants an internship or job at Amazon.
 2. He searches for `Amazon`.
 3. SeniorSOS finds alumni at Amazon.
 4. He sees a result such as `Arun Kumar — SDE @ Amazon — 4 mutual connections`.
-5. He opens Arun's profile, which may show `SSN '22`, `Java`, `Spring Boot`, `AWS`, and actions `Connect`, `Request Mentorship`, `Request Referral`, and `Message`.
+5. He opens Arun's profile, which may show `SSN '22`, `Java`, `Spring Boot`, `AWS`, and actions `Connect`, `Request Mentorship`, and `Message`.
 6. Bala sends a connection request.
 7. Arun accepts it.
 8. They can chat.
-9. Bala finds an Amazon `SDE I` job and submits a referral request with job details.
-10. Arun accepts and later updates the request to `REFERRED`; Bala receives the opportunity.
 
 ### 4.2 Smart networking and graph paths
 
@@ -169,19 +164,7 @@ The student requests mentorship; the alumnus can accept or reject. If accepted, 
 
 Example focus areas include Java, Backend, System Design, Placement Preparation, Frontend Development, Career Guidance, Higher Studies, and Entrepreneurship. Preferred industry can be selected (example: Software). Preferred frequency can be one-time, weekly, or monthly.
 
-### 4.5 Referral workflow
-
-The student selects an alumnus and submits company, position, job URL, reason for interest, additional message, and resume. The alumnus sees the request and can accept or reject it.
-
-Canonical lifecycle shown in the notes:
-
-```text
-PENDING → ACCEPTED → REFERRED → INTERVIEW → COMPLETED
-```
-
-The referral detail page can include the requested company and role, recipient alumnus, request date, status timeline, messages, documents, and notes.
-
-### 4.6 Chat and presence
+### 4.5 Chat and presence
 
 After two people connect, they can chat. Example:
 
@@ -201,7 +184,7 @@ Realtime capabilities listed in the notes:
 - Attachments (later)
 - Group conversations (later)
 
-### 4.7 Community feed
+### 4.6 Community feed
 
 Alumni can share career updates, advice, or job opportunities. Example post: an alumnus announces joining Microsoft and offers help to college students preparing for interviews. Users can like, comment, share, and report posts. The community feed is a supporting career feature.
 
@@ -251,13 +234,6 @@ GET  /api/auth/me
 - Accept/reject requests and view My Mentors/My Mentees.
 - Show focus areas, profile, and chat action.
 
-### Referrals
-
-- Student creates referral request with company, position, job URL, why interested, additional message, resume, and selected alumnus.
-- Alumnus accepts/rejects.
-- Track `PENDING`, `ACCEPTED`, `REFERRED`, `INTERVIEW`, and `COMPLETED` states.
-- Detail page includes messages, documents, notes, date, and a status timeline.
-
 ### Community content
 
 - Create posts with text, optional image/document/link, and visibility set to `College` or `Connections`.
@@ -266,9 +242,9 @@ GET  /api/auth/me
 
 ### Notifications
 
-- Notification types: `Connection`, `Message`, `Referral`, `Mentorship`, `Post`, `System`.
-- Examples: connection accepted, referral received, comment on post, new connection.
-- Notification preferences can be toggled for connection requests, messages, mentorship requests, referral updates, and community activity.
+- Notification types: `Connection`, `Message`, `Mentorship`, `Post`, `System`.
+- Examples: connection accepted, comment on post, new connection.
+- Notification preferences can be toggled for connection requests, messages, mentorship requests, and community activity.
 - Support realtime notification delivery as the realtime stack is introduced.
 
 ### Search
@@ -288,7 +264,7 @@ GET  /api/auth/me
 - User actions: view, suspend, activate, delete.
 - Alumni verification queue: view graduation, department, company, documents; approve/reject; approved users receive a verified-alumni indicator.
 - Content moderation: review reported post, report reason, reporter; view, dismiss, remove, warn user.
-- Report categories: user, content, referral, mentorship.
+- Report categories: user, content, mentorship.
 - Optional audit log of admin actions, e.g. alumni verified, post removed, user suspended.
 
 ## 6. Frontend information architecture and routes
@@ -307,10 +283,10 @@ Landing page content:
 
 - Header with SeniorSOS, Login, Register.
 - Headline: “Your College Network. Your Career Advantage.”
-- Copy: connect with seniors and alumni, find mentors, get referrals, build a professional network.
+- Copy: connect with seniors and alumni, find mentors, and build a professional network.
 - Actions: Get Started, Explore Network.
 - “How SeniorSOS Works”: Discover → Connect → Learn → Grow.
-- Value propositions: Verified Alumni | Mentorship | Referrals.
+- Value propositions: Verified Alumni | Mentorship | Career Guidance.
 
 ### Main application routes
 
@@ -323,9 +299,6 @@ Landing page content:
 /network
 /network/graph
 /messages
-/referrals
-/referrals/new
-/referrals/:id
 /mentorship
 /mentorship/discover
 /mentorship/request/:userId
@@ -353,7 +326,7 @@ Landing page content:
 
 - Main home page after login; personalize based on role.
 - Header with brand, search, notification icon, and profile.
-- Navigation to Dashboard, Discover, Network, Messages, Referrals, Mentorship, Community.
+- Navigation to Dashboard, Discover, Network, Messages, Mentorship, Community.
 - Greeting (example: “Good morning, Bala”).
 - Profile completion card/progress bar (example: 80%).
 - Recommended alumni cards (example names Arun, Priya, Karthik).
@@ -371,7 +344,7 @@ Landing page content:
 #### Public profile `/profile/:userId`
 
 - Header with name, job title/company, college/degree/year.
-- Actions: Connect, Message, Request Referral; mentorship action also appears in the student journey.
+- Actions: Connect, Message, and Request Mentorship.
 - Sections: About, Experience, Skills, Education, Network.
 - Network section shows mutual count and View Connection Path.
 - Example: Arun Kumar; Software Engineer @ Amazon; SSN • B.Tech IT • 2024; skills Java, Spring Boot, AWS, SQL; 12 mutual connections.
@@ -399,12 +372,6 @@ Landing page content:
 - Two-panel layout: conversations list and selected conversation.
 - Show online status, messages, composer/send button.
 - Features: realtime messages, online status, typing indicator, read status; attachments and group conversations later.
-
-#### Referrals `/referrals`
-
-- Tabs: My Requests, Received Requests.
-- Cards show company, role, alumnus, status, and View Details.
-- Referral creation fields and referral details/status timeline as listed above.
 
 #### Mentorship `/mentorship`
 
@@ -444,7 +411,7 @@ Landing page content:
 - Account: Email, Phone, College, Department.
 - Security: Change Password, Active Sessions, Logout All Devices.
 - Privacy: Everyone in college or Connections only.
-- Notification switches: Connection Requests ON, Messages ON, Mentorship Requests ON, Referral Updates ON, Community Activity OFF (illustrative defaults).
+- Notification switches: Connection Requests ON, Messages ON, Mentorship Requests ON, Community Activity OFF (illustrative defaults).
 
 #### Admin pages
 
@@ -452,7 +419,7 @@ Landing page content:
 - User list with search and View/Suspend/Activate/Delete actions.
 - Alumni verification detail with graduation, department, company, documents, Approve/Reject, verified state.
 - Moderation queue includes report reason and reporter with View/Dismiss/Remove/Warn User.
-- Reports page groups User Reports, Content Reports, Referral Reports, Mentorship Reports.
+- Reports page groups User Reports, Content Reports, Mentorship Reports.
 - Optional audit logs list admin identity/action/target.
 
 ## 7. Product scope: MVP and advanced
@@ -467,7 +434,6 @@ The notes distinguish the eventual full product from a first release. The explic
 6. Profile by user ID
 7. Network
 8. Messages
-9. Referrals
 10. Community
 11. Notifications
 12. Settings
@@ -477,20 +443,19 @@ Advanced list:
 13. Network Graph
 14. Mentorship
 15. Mentor Discovery
-16. Referral Tracking
 17. Global Search
 18. Admin Dashboard
 19. Alumni Verification
 20. Content Moderation
 21. Audit Logs
 
-Note: mentorship/referral workflows and admin capabilities are described in detail as core product concepts elsewhere, while the later route plan labels some of them advanced. Treat sequencing as a project planning decision, not a change to the feature definitions.
+Note: mentorship workflows and admin capabilities are described in detail as core product concepts, while the route plan labels some of them advanced. Treat sequencing as a project planning decision, not a change to the feature definitions.
 
 Core journey:
 
 ```text
 REGISTER → PROFILE → DISCOVER ALUMNI → VIEW PROFILE → SEE MUTUAL CONNECTIONS
-→ CONNECT → CHAT → MENTORSHIP / REFERRAL → CAREER OPPORTUNITY
+→ CONNECT → CHAT → MENTORSHIP → CAREER GROWTH
 ```
 
 ## 8. Architecture
@@ -503,7 +468,7 @@ Modules/domains:
 
 ```text
 Authentication, Profiles/Users, Posts/Content, Networking, Mentorship,
-Referrals, Chat, Notifications, Administration
+Chat, Notifications, Administration
 ```
 
 Suggested backend module structure:
@@ -520,7 +485,6 @@ backend/
 │   ├── posts/
 │   ├── networking/
 │   ├── mentorship/
-│   ├── referrals/
 │   └── chat/
 ├── infrastructure/
 │   ├── postgres/
@@ -536,8 +500,6 @@ Another suggested high-level repo layout is included in the implementation plans
 
 The project examples assume a small student team (example: 3 developers), one application, one primary backend language, one repository, moderate traffic, and an academic/demo deployment. Microservices would add service discovery, networking, service-to-service authentication, distributed debugging, deployments, logging, health checks, configuration, and inter-service communication before those costs are justified.
 
-A referral operation can create a request, update status, and create a notification. Keeping related business behavior in a modular monolith makes the transaction and workflow easier to reason about.
-
 The design does not prevent later decomposition: identify a real bottleneck, then extract a module such as Chat into a service incrementally. Kubernetes does not require microservices; it can run one backend Deployment with several replicas, each containing all modules.
 
 ### Logical module-to-storage mapping
@@ -547,11 +509,11 @@ The design does not prevent later decomposition: identify a real bottleneck, the
 | Authentication, identity, roles, structured user/profile data | PostgreSQL in the final stack; the first implementation note uses MongoDB for the initial User/auth vertical slice |
 | Posts, comments, reactions, feed, flexible content/activity | MongoDB |
 | Connections, mutual connections, paths, professional network | Neo4j |
-| Referrals, mentorship requests, notifications, audit logs | PostgreSQL |
+| Mentorship requests, notifications, audit logs | PostgreSQL |
 | Chat/presence/realtime cross-replica coordination | Socket.io with Redis for presence/Pub/Sub; MongoDB may store messages if durable message history is required |
 | Cache and rate limiting | Redis |
 
-The earlier product explanation contains a rough “where technology fits” table saying MongoDB can hold users, profiles, posts, and referral data. Later architecture notes make PostgreSQL the authoritative owner of structured users and referrals, MongoDB the content store, and Neo4j the graph store. The latter is the final stack's explicit logical ownership; the initial MongoDB-only foundation is a staged prototype plan.
+PostgreSQL is the authoritative owner of structured users, profiles, mentorship requests, and notifications; MongoDB is the content store, and Neo4j is the graph store. The initial MongoDB-only foundation is a staged prototype plan.
 
 ## 9. Data architecture and ownership
 
@@ -564,13 +526,12 @@ users
 roles
 student_profiles
 alumni_profiles
-referral_requests
 mentorship_requests
 notifications
 audit_logs
 ```
 
-Example `User` fields: id, name, email, password hash, role, created_at. Example `ReferralRequest`: id, student_id, alumni_id, company, job_title, job_url, status, created_at.
+Example `User` fields: id, name, email, password hash, role, created_at.
 
 Benefits cited: foreign keys, transactions, constraints, indexes, ACID consistency, SQL queries. Prisma is the planned access layer.
 
@@ -1040,7 +1001,7 @@ tree -L 2
 ### Testing
 
 - Jest + Supertest for backend/API tests.
-- Example endpoints to cover: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/users/me`, `POST /api/referrals`.
+- Example endpoints to cover: `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/users/me`.
 - Postman for manual API development/testing.
 - Testing appears in the chosen stack; implement it as features are built.
 
@@ -1106,12 +1067,11 @@ These points differ across the supplied notes or remain intentionally conditiona
 2. **Initial vs final database ownership:** the initial auth milestone stores users in MongoDB. The final stack says PostgreSQL owns users/auth/roles and MongoDB owns flexible content. Treat MongoDB auth as a starter slice or migrate the model when the final stack is adopted; the migration plan is not specified.
 3. **Folder naming:** `client/server` and `frontend/backend` are both proposed; choose one canonical layout.
 4. **Message persistence:** MongoDB is suggested for messages only if needed, while Redis is designated for presence/Pub/Sub. Durable chat-history ownership needs a decision.
-5. **Mentorship and referrals scope:** described as central product workflows but categorized partly as advanced in the MVP plan. Set release priorities.
+5. **Mentorship scope:** described as a core product workflow but categorized partly as advanced in the MVP plan. Set release priorities.
 6. **Deployment scope:** local Kind/Minikube demo is specified; no cloud provider, production host, or hosting budget is defined.
 7. **Profile/data ownership across stores:** PostgreSQL is the system of record in the final stack, with MongoDB and Neo4j referencing one user ID. Exact sync/event/error-recovery mechanics are not specified.
 8. **Identity/verification policy:** college email is requested for registration and alumni verification is required, but exact verification evidence, approval rules, and student validation are not defined.
-9. **Privacy/access details:** profile visibility choices are given, but exact authorization behavior for messages, posts, referrals, and graph traversal needs implementation decisions.
-10. **Status/API details:** referral states are listed; precise allowed transitions, rejection states, and permissions are not fully specified.
+9. **Privacy/access details:** profile visibility choices are given, but exact authorization behavior for messages, posts, and graph traversal needs implementation decisions.
 
 ## 17. Project principles captured from the notes
 

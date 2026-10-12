@@ -104,33 +104,7 @@
 
 ---
 
-### Phase 4: Job Referrals & Tracking System
-> **Goal**: Streamline job referral requests and status tracking between students and alumni.
-
-#### 1. Database Schema & Models
-* **Entities**: `ReferralRequest`, `ReferralStatusHistory`, `Company` ([schema.prisma](file:///d:/SeniorSOS/Senior-SOS/backend/prisma/schema.prisma#L258-L296)).
-* **Enums**: `ReferralStatus` (`PENDING`, `ACCEPTED`, `REJECTED`, `REFERRED`, `INTERVIEW`, `COMPLETED`, `CANCELLED`).
-
-#### 2. Backend Module (`backend/src/modules/referrals/`)
-* **Routes & Controllers**:
-  * `POST /api/referrals` — Create referral request (select alumnus, company, job title, job URL, reason, resume URL).
-  * `PATCH /api/referrals/:id/status` — Alumni updates status (with optional note).
-  * `GET /api/referrals/student` — List requests submitted by student.
-  * `GET /api/referrals/alumni` — List referral requests received by alumnus.
-  * `GET /api/referrals/:id` — Get referral detail & status history timeline.
-
-#### 3. Frontend UI (`frontend/src/features/referrals/`)
-* **Routes**: `/referrals`, `/referrals/new`, `/referrals/:id`
-* **Components & Views**:
-  * **Request Referral Page (`/referrals/new`)**: Alumnus selector, target company dropdown, job position title, job posting URL, motivation reason, message, and resume link.
-  * **Referrals Dashboard (`/referrals`)**:
-    * **My Requests Tab**: Student view with status badges (*Pending*, *Accepted*, *Referred*, etc.).
-    * **Received Requests Tab**: Alumni view with status transition controls.
-  * **Referral Detail & Timeline View (`/referrals/:id`)**: Visual timeline showing progress from `PENDING` ➔ `REFERRED` ➔ `INTERVIEW` ➔ `COMPLETED`.
-
----
-
-### Phase 5: Notifications & Activity System
+### Phase 4: Notifications & Activity System
 > **Goal**: In-app notifications and real-time alerts for user interactions.
 
 #### 1. Database Schema & Models
@@ -144,7 +118,6 @@
 * **Notification Triggers**: Helper function `createNotification({ recipientId, actorId, type, payload })` triggered on:
   * Connection request received / accepted.
   * Mentorship request received / status updated.
-  * Referral request received / status updated.
   * New comment on post.
 
 #### 3. Frontend UI (`frontend/src/features/notifications/`)
@@ -156,7 +129,7 @@
 
 ---
 
-### Phase 6: Admin Portal & Alumni Verification
+### Phase 5: Admin Portal & Alumni Verification
 > **Goal**: Platform moderation, user administration, and alumni verification queue.
 
 #### 1. Database Schema & Models
@@ -183,7 +156,7 @@
 
 ---
 
-### Phase 7: User Settings & Privacy Controls
+### Phase 6: User Settings & Privacy Controls
 > **Goal**: Allow users to manage account details, security, and privacy preferences.
 
 #### 1. Database Schema & Models
@@ -202,11 +175,11 @@
   * **Account Settings Tab**: Update basic contact details.
   * **Security Settings Tab**: Change password form, list active refresh tokens/sessions.
   * **Privacy Settings Tab**: Radio toggle for profile visibility.
-  * **Notification Preferences Tab**: Toggle switches for Connection Requests, Messages, Mentorship Updates, Referral Updates, and Community Activity.
+  * **Notification Preferences Tab**: Toggle switches for Connection Requests, Messages, Mentorship Updates, and Community Activity.
 
 ---
 
-### Phase 8: Global Discovery & Search Hub
+### Phase 7: Global Discovery & Search Hub
 > **Goal**: Dedicated network-wide discovery page with rich filtering.
 
 #### 1. Backend Module (`backend/src/modules/users/`)
@@ -227,11 +200,10 @@
 flowchart LR
     P1["Phase 1: Connections"] --> P2["Phase 2: Profiles & Skills"]
     P2 --> P3["Phase 3: Mentorship System"]
-    P3 --> P4["Phase 4: Referral System"]
-    P4 --> P5["Phase 5: Notifications"]
-    P5 --> P6["Phase 6: Admin & Verification"]
-    P6 --> P7["Phase 7: Settings & Privacy"]
-    P7 --> P8["Phase 8: Global Discover"]
+    P3 --> P4["Phase 4: Notifications"]
+    P4 --> P5["Phase 5: Admin & Verification"]
+    P5 --> P6["Phase 6: Settings & Privacy"]
+    P6 --> P7["Phase 7: Global Discover"]
 ```
 
 ---
@@ -241,6 +213,5 @@ flowchart LR
 1. **Connection Enforcement**: Verify non-connected users see a "Connect" prompt before direct chat.
 2. **Profile Completion**: Verify updating profile reflects across feeds, message headers, and public profile views.
 3. **Mentorship Flow**: Test student requesting mentorship ➔ alumnus receiving request ➔ accepting ➔ status updating to `ACTIVE`.
-4. **Referral Timeline**: Test student creating referral request ➔ alumnus updating status to `REFERRED` ➔ verifying history audit log in PostgreSQL.
 5. **Alumni Verification**: Verify admin approving alumni updates `verificationStatus` to `APPROVED` and shows verified badge.
 6. **Notification Delivery**: Verify performing connection/mentorship actions triggers in-app notification count updates for recipient.

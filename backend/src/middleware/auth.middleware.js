@@ -37,7 +37,6 @@ function requireAuth(req, res, next) {
  *
  * Usage:
  *   router.get('/admin', requireAuth, requireRole('ADMIN'), handler)
- *   router.post('/referrals', requireAuth, requireRole('STUDENT'), handler)
  *
  * @param {...string} roles  One or more of 'STUDENT', 'ALUMNI', 'ADMIN'
  */

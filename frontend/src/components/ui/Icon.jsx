@@ -5,7 +5,6 @@ const paths = {
   discover: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4M11 8v6m-3-3h6" /></>,
   network: <><circle cx="12" cy="5" r="2.5" /><circle cx="5" cy="18" r="2.5" /><circle cx="19" cy="18" r="2.5" /><path d="m10.8 7.2-4.5 8.6m6.9-8.6 4.5 8.6M7.5 18h9" /></>,
   mentorship: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-1a6 6 0 0 1 12 0v1zm12-12a3 3 0 0 1 0 6m2 2a5 5 0 0 1 4 5" /></>,
-  referrals: <><path d="M4 19V5m0 0h13l-3 4 3 4H4m0 0v6" /></>,
   community: <><path d="M4 5h16v11H9l-5 4z" /><path d="M8 9h8m-8 3h5" /></>,
   messages: <><path d="M4 5h16v12H9l-5 3z" /><path d="M8 9h8m-8 4h5" /></>,
   arrow: <><path d="M5 12h14m-6-6 6 6-6 6" /></>,

@@ -25,7 +25,6 @@ export default function SettingsPage() {
   const [notificationPreferences, setNotificationPreferences] = useState({
     connection_requests: true,
     mentorship_requests: true,
-    referral_updates: true,
     messages: true,
     community_activity: false,
   });
@@ -359,29 +358,6 @@ export default function SettingsPage() {
                           <span
                             className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                               notificationPreferences.mentorship_requests ? 'translate-x-5' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      {/* Referral Status Alerts */}
-                      <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50/60 border border-slate-200/80">
-                        <div>
-                          <p className="font-semibold text-slate-800 text-sm">Job Referral Alerts</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Notify when your referral request advances (accepted, referred, interview).
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePref('referral_updates')}
-                          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            notificationPreferences.referral_updates ? 'bg-blue-600' : 'bg-slate-300'
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                              notificationPreferences.referral_updates ? 'translate-x-5' : 'translate-x-0'
                             }`}
                           />
                         </button>
