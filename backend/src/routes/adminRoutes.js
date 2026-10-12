@@ -26,4 +26,8 @@ router.patch('/users/:id/status', adminController.updateUserStatus);
 // Audit Logs
 router.get('/audit-logs', adminController.getAuditLogs);
 
+// Master Data Management
+router.post('/departments', adminController.createDepartment);
+router.post('/companies', adminController.createCompany);
+
 module.exports = router;

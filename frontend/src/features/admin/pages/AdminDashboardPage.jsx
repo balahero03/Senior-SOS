@@ -10,6 +10,11 @@ import {
   reviewVerification,
   getUsersList,
   updateUserStatus,
+  getAuditLogs,
+  createDepartment,
+  createCompany,
+  getDepartmentsList,
+  getCompaniesList,
 } from '../api';
 
 export default function AdminDashboardPage() {
@@ -35,6 +40,19 @@ export default function AdminDashboardPage() {
   const [verifications, setVerifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
+
+  // Master Data & Audit states
+  const [departments, setDepartments] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [companySearch, setCompanySearch] = useState('');
+  const [newDept, setNewDept] = useState({ code: '', name: '' });
+  const [newCompany, setNewCompany] = useState({ name: '' });
+  const [isSubmittingDept, setIsSubmittingDept] = useState(false);
+  const [isSubmittingCompany, setIsSubmittingCompany] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 15, total: 0, totalPages: 1 });
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [verificationSearch, setVerificationSearch] = useState('');
@@ -86,6 +104,34 @@ export default function AdminDashboardPage() {
     [searchQuery, roleFilter, statusFilter]
   );
 
+  const loadMasterData = useCallback(async () => {
+    try {
+      const [deptList, compList] = await Promise.all([
+        getDepartmentsList().catch(() => []),
+        getCompaniesList(companySearch).catch(() => []),
+      ]);
+      setDepartments(deptList || []);
+      setCompanies(compList || []);
+    } catch (err) {
+      console.error('Failed to load master data:', err);
+    }
+  }, [companySearch]);
+
+  const loadAuditLogs = useCallback(async (page = 1) => {
+    setIsAuditLoading(true);
+    try {
+      const data = await getAuditLogs({ page, limit: 15 });
+      setAuditLogs(data?.logs || []);
+      if (data?.pagination) {
+        setAuditPagination(data.pagination);
+      }
+    } catch (err) {
+      console.error('Failed to load audit logs:', err);
+    } finally {
+      setIsAuditLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
@@ -93,8 +139,52 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (activeTab === 'users') {
       loadUsers(1);
+    } else if (activeTab === 'masterData') {
+      loadMasterData();
+    } else if (activeTab === 'audit') {
+      loadAuditLogs(1);
     }
-  }, [activeTab, loadUsers]);
+  }, [activeTab, loadUsers, loadMasterData, loadAuditLogs]);
+
+  const handleCreateDepartment = async (e) => {
+    e.preventDefault();
+    if (!newDept.code.trim() || !newDept.name.trim()) {
+      showFeedback('Department code and name are required', 'error');
+      return;
+    }
+    setIsSubmittingDept(true);
+    try {
+      await createDepartment({ code: newDept.code.trim().toUpperCase(), name: newDept.name.trim() });
+      showFeedback(`Department ${newDept.code.toUpperCase()} registered successfully`);
+      setNewDept({ code: '', name: '' });
+      await Promise.all([loadMasterData(), loadDashboardData()]);
+    } catch (err) {
+      console.error('Failed to create department:', err);
+      showFeedback(err.response?.data?.error?.message || 'Failed to create department', 'error');
+    } finally {
+      setIsSubmittingDept(false);
+    }
+  };
+
+  const handleCreateCompany = async (e) => {
+    e.preventDefault();
+    if (!newCompany.name.trim()) {
+      showFeedback('Company name is required', 'error');
+      return;
+    }
+    setIsSubmittingCompany(true);
+    try {
+      await createCompany({ name: newCompany.name.trim() });
+      showFeedback(`Company "${newCompany.name.trim()}" registered successfully`);
+      setNewCompany({ name: '' });
+      await Promise.all([loadMasterData(), loadDashboardData()]);
+    } catch (err) {
+      console.error('Failed to create company:', err);
+      showFeedback(err.response?.data?.error?.message || 'Failed to create company', 'error');
+    } finally {
+      setIsSubmittingCompany(false);
+    }
+  };
 
   const handleReview = async (targetUserId, status, applicantName) => {
     const isApprove = status === 'APPROVED';
@@ -229,6 +319,26 @@ export default function AdminDashboardPage() {
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
               {stats.totalUsers}
             </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('masterData')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'masterData'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🏛️ Campus Master Data
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'audit'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            📜 Security Audit Trail
           </button>
         </div>
 
@@ -750,6 +860,320 @@ export default function AdminDashboardPage() {
                     <button
                       disabled={pagination.page >= pagination.totalPages}
                       onClick={() => loadUsers(pagination.page + 1)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Campus Master Data Management */}
+        {activeTab === 'masterData' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-sm">
+              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                Institutional Configuration
+              </span>
+              <h2 className="text-xl font-bold mt-2">Campus Master Data Registry</h2>
+              <p className="text-xs text-indigo-200/80 max-w-2xl mt-1">
+                Maintain authoritative lists of engineering departments and recognized employer companies. These values automatically synchronize across student onboarding, alumni registration, and filter facets.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Academic Departments */}
+              <div className="space-y-6">
+                {/* Add Department Card */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>🏛️</span> Add Academic Department
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Register a new engineering faculty or academic degree department.</p>
+
+                  <form onSubmit={handleCreateDepartment} className="mt-4 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Code</label>
+                        <input
+                          type="text"
+                          required
+                          value={newDept.code}
+                          onChange={(e) => setNewDept({ ...newDept, code: e.target.value.toUpperCase() })}
+                          placeholder="e.g. AIML"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={newDept.name}
+                          onChange={(e) => setNewDept({ ...newDept, name: e.target.value })}
+                          placeholder="e.g. Artificial Intelligence & Machine Learning"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingDept}
+                      className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isSubmittingDept ? 'Registering...' : '+ Register Department'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Departments List */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Registered Departments</h4>
+                      <p className="text-xs text-slate-500">{departments.length} active faculties</p>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                    {departments.length === 0 ? (
+                      <p className="p-6 text-center text-xs text-slate-400">No departments loaded</p>
+                    ) : (
+                      departments.map((dept) => {
+                        const breakdown = stats.departmentsBreakdown?.find((d) => d.code === dept.code);
+                        return (
+                          <div key={dept.id || dept.code} className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className="w-12 text-center py-1 rounded-lg bg-indigo-50 text-indigo-700 font-mono text-xs font-bold border border-indigo-200/80">
+                                {dept.code}
+                              </span>
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{dept.name}</p>
+                                <p className="text-[11px] text-slate-400">Institutional Faculty</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                              {breakdown ? `${breakdown.enrolledCount} enrolled` : 'Active'}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Partner Employers */}
+              <div className="space-y-6">
+                {/* Add Company Card */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>🏢</span> Register Partner Employer
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Add hiring organizations and alumni employment partners.</p>
+
+                  <form onSubmit={handleCreateCompany} className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      required
+                      value={newCompany.name}
+                      onChange={(e) => setNewCompany({ name: e.target.value })}
+                      placeholder="e.g. Microsoft, Google, Zoho"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmittingCompany}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {isSubmittingCompany ? 'Adding...' : '+ Add Employer'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Companies List with Search */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Partner Employers</h4>
+                      <p className="text-xs text-slate-500">{companies.length} verified corporate entities</p>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={companySearch}
+                        onChange={(e) => {
+                          setCompanySearch(e.target.value);
+                          getCompaniesList(e.target.value).then(setCompanies).catch(() => {});
+                        }}
+                        placeholder="Search employers..."
+                        className="w-full sm:w-48 pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                      <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                    {companies.length === 0 ? (
+                      <p className="p-6 text-center text-xs text-slate-400">No partner companies matching query</p>
+                    ) : (
+                      companies.map((c) => (
+                        <div key={c.id} className="p-3.5 px-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200/60">
+                              {c.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-900">{c.name}</span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                            Partner Org
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: Security Audit Logs Viewer */}
+        {activeTab === 'audit' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                  Regulatory Compliance & Governance
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">Institutional Audit Trail</h3>
+                <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+                  Append-only immutable record capturing administrative decisions, verification approvals, account status alterations, and metadata changes.
+                </p>
+              </div>
+
+              <button
+                onClick={() => loadAuditLogs(auditPagination.page)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5 self-start md:self-auto"
+              >
+                <span>↻</span> Refresh Audit Stream
+              </button>
+            </div>
+
+            {/* Audit Logs Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Timestamp</th>
+                      <th className="py-3.5 px-6">Administrator</th>
+                      <th className="py-3.5 px-6">Action</th>
+                      <th className="py-3.5 px-6">Target Entity</th>
+                      <th className="py-3.5 px-6">Modification Metadata</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {isAuditLoading ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          Loading audit records...
+                        </td>
+                      </tr>
+                    ) : auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          No audit entries recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      auditLogs.map((log) => {
+                        const dateFormatted = new Date(log.createdAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        });
+
+                        const actionStyles = {
+                          ALUMNI_VERIFICATION: 'bg-purple-50 text-purple-700 border-purple-200',
+                          USER_STATUS_CHANGE: 'bg-amber-50 text-amber-700 border-amber-200',
+                          DEPARTMENT_CREATED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          COMPANY_CREATED: 'bg-blue-50 text-blue-700 border-blue-200',
+                        }[log.action] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                            {/* Timestamp */}
+                            <td className="py-3.5 px-6 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                              {dateFormatted}
+                            </td>
+
+                            {/* Actor */}
+                            <td className="py-3.5 px-6">
+                              <div className="font-semibold text-slate-800">{log.actor?.name || 'System Admin'}</div>
+                              <div className="text-[11px] text-slate-400">{log.actor?.email || 'admin@seniorsos.edu'}</div>
+                            </td>
+
+                            {/* Action */}
+                            <td className="py-3.5 px-6 whitespace-nowrap">
+                              <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border ${actionStyles}`}>
+                                {log.action}
+                              </span>
+                            </td>
+
+                            {/* Target */}
+                            <td className="py-3.5 px-6 font-mono text-[11px] text-slate-600">
+                              <span className="font-bold text-slate-700">{log.targetType || 'ENTITY'}</span>
+                              <span className="block text-[10px] text-slate-400 truncate max-w-[140px]">{log.targetId}</span>
+                            </td>
+
+                            {/* Metadata */}
+                            <td className="py-3.5 px-6">
+                              <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2 font-mono text-[11px] text-slate-700 max-w-sm">
+                                {typeof log.metadata === 'object' && log.metadata !== null ? (
+                                  Object.entries(log.metadata).map(([k, v]) => (
+                                    <div key={k} className="flex gap-2">
+                                      <span className="text-slate-400">{k}:</span>
+                                      <span className="font-bold text-slate-900">{String(v)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span>{JSON.stringify(log.metadata)}</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Audit Pagination */}
+              {auditPagination.totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Page {auditPagination.page} of {auditPagination.totalPages} ({auditPagination.total} total log entries)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={auditPagination.page <= 1}
+                      onClick={() => loadAuditLogs(auditPagination.page - 1)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      disabled={auditPagination.page >= auditPagination.totalPages}
+                      onClick={() => loadAuditLogs(auditPagination.page + 1)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
                     >
                       Next

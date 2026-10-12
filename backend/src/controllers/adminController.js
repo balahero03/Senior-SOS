@@ -334,10 +334,128 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * POST /api/admin/departments
+ * Body: { code, name }
+ * Creates a new academic department and records to audit_logs.
+ */
+const createDepartment = asyncHandler(async (req, res) => {
+  const adminId = req.user.id || req.user.sub;
+  const { code, name } = req.body;
+
+  if (!code || !code.trim() || !name || !name.trim()) {
+    throw new AppError('Department code and name are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  const normalizedName = name.trim();
+
+  const existingDept = await prisma.department.findUnique({
+    where: { code: normalizedCode },
+  });
+
+  if (existingDept) {
+    throw new AppError(`Department with code ${normalizedCode} already exists`, 409, 'CONFLICT');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const department = await tx.department.create({
+      data: {
+        code: normalizedCode,
+        name: normalizedName,
+      },
+    });
+
+    const auditLog = await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'DEPARTMENT_CREATED',
+        targetType: 'DEPARTMENT',
+        targetId: department.id,
+        metadata: {
+          code: normalizedCode,
+          name: normalizedName,
+        },
+      },
+    });
+
+    return { department, auditLog };
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      department: result.department,
+      auditLogId: result.auditLog.id,
+      message: `Department ${normalizedCode} created successfully`,
+    },
+  });
+});
+
+/**
+ * POST /api/admin/companies
+ * Body: { name }
+ * Registers a new employer company and records to audit_logs.
+ */
+const createCompany = asyncHandler(async (req, res) => {
+  const adminId = req.user.id || req.user.sub;
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    throw new AppError('Company name is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const trimmedName = name.trim();
+  const nameKey = trimmedName.toLowerCase();
+
+  const existingCompany = await prisma.company.findUnique({
+    where: { nameKey },
+  });
+
+  if (existingCompany) {
+    throw new AppError(`Company "${trimmedName}" already exists`, 409, 'CONFLICT');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const company = await tx.company.create({
+      data: {
+        name: trimmedName,
+        nameKey,
+      },
+    });
+
+    const auditLog = await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'COMPANY_CREATED',
+        targetType: 'COMPANY',
+        targetId: company.id,
+        metadata: {
+          name: trimmedName,
+          nameKey,
+        },
+      },
+    });
+
+    return { company, auditLog };
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      company: result.company,
+      auditLogId: result.auditLog.id,
+      message: `Company "${trimmedName}" created successfully`,
+    },
+  });
+});
+
 module.exports = {
   getAdminStats,
   getPendingVerifications,
   updateVerificationStatus,
   updateUserStatus,
   getAuditLogs,
+  createDepartment,
+  createCompany,
 };
