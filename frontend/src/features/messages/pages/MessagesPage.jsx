@@ -28,14 +28,14 @@ function formatTime(dateStr) {
 }
 
 function roleColor(role) {
-  return role === 'ALUMNI' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+  return role === 'ALUMNI' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200';
 }
 
 function Avatar({ name, size = 'md' }) {
   const initials = (name || 'U').charAt(0).toUpperCase();
   const sz = size === 'sm' ? 'w-8 h-8 text-xs' : size === 'lg' ? 'w-11 h-11 text-base' : 'w-10 h-10 text-sm';
   return (
-    <div className={`${sz} rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-bold flex-shrink-0 shadow-sm`}>
+    <div className={`${sz} rounded-full bg-[#0a66c2] text-white flex items-center justify-center font-bold flex-shrink-0 shadow-xs`}>
       {initials}
     </div>
   );
@@ -48,21 +48,21 @@ function ConversationItem({ conv, isActive, currentUserId, onClick }) {
   return (
     <button
       onClick={() => onClick(conv)}
-      className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all rounded-xl ${
+      className={`w-full flex items-center gap-3 px-3.5 py-3 text-left transition-all rounded-lg ${
         isActive
-          ? 'bg-blue-50 border border-blue-200 shadow-sm'
-          : 'hover:bg-slate-100 border border-transparent'
+          ? 'bg-[#eef5fc] border-l-4 border-l-[#0a66c2] shadow-2xs'
+          : 'hover:bg-slate-100 border-l-4 border-l-transparent'
       }`}
     >
       <Avatar name={other.name} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-800 truncate">{other.name}</p>
+          <p className={`text-xs font-bold truncate ${isActive ? 'text-[#0a66c2]' : 'text-slate-900'}`}>{other.name}</p>
           {conv.lastMessageAt && (
-            <span className="text-xs text-slate-400 flex-shrink-0 ml-2">{formatTime(conv.lastMessageAt)}</span>
+            <span className="text-[10px] text-slate-400 flex-shrink-0 ml-1">{formatTime(conv.lastMessageAt)}</span>
           )}
         </div>
-        <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold mt-0.5 inline-block ${roleColor(other.role)}`}>
+        <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-extrabold mt-0.5 inline-block ${roleColor(other.role)}`}>
           {other.role}
         </span>
       </div>
@@ -76,14 +76,14 @@ function MessageBubble({ msg, isOwn }) {
   return (
     <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       <div
-        className={`max-w-xs sm:max-w-sm lg:max-w-md px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+        className={`max-w-xs sm:max-w-sm lg:max-w-md px-4 py-2 rounded-2xl text-xs leading-relaxed shadow-xs ${
           isOwn
-            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-br-md'
-            : 'bg-white border border-slate-200 text-slate-800 rounded-bl-md'
+            ? 'bg-[#0a66c2] text-white rounded-br-xs'
+            : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs'
         }`}
       >
         <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-        <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-blue-200' : 'text-slate-400'}`}>
+        <p className={`text-[10px] mt-1 text-right ${isOwn ? 'text-blue-100' : 'text-slate-400'}`}>
           {formatTime(msg.createdAt)}
         </p>
       </div>
@@ -385,7 +385,7 @@ export default function MessagesPage() {
   const otherUser = activeConv?.otherUser;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#f4f2ee] flex flex-col font-sans">
       <Navbar />
 
       {showNewModal && (
@@ -395,19 +395,20 @@ export default function MessagesPage() {
         />
       )}
 
-      <main className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
-        {/* ── Conversation Sidebar ─────────────────────────────────────────── */}
-        <aside className="w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-bold text-slate-900 text-lg">Messages</h2>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center hover:opacity-90 transition-opacity shadow-md shadow-blue-500/20"
-              title="New conversation"
-            >
-              <span className="text-lg leading-none">+</span>
-            </button>
-          </div>
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
+        <main className="feed-card flex-1 flex overflow-hidden h-[calc(100vh-100px)]">
+          {/* ── Conversation Sidebar ─────────────────────────────────────────── */}
+          <aside className="w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+            <div className="p-3.5 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-slate-900 text-sm">Messaging</h2>
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="w-8 h-8 rounded-full bg-[#0a66c2] text-white flex items-center justify-center hover:bg-[#004182] transition-colors shadow-xs"
+                title="New conversation"
+              >
+                <span className="text-base leading-none font-bold">+</span>
+              </button>
+            </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loadingConvs ? (
@@ -532,6 +533,7 @@ export default function MessagesPage() {
           )}
         </section>
       </main>
+      </div>
     </div>
   );
 }
