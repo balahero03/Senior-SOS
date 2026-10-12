@@ -77,6 +77,56 @@ export default function Navbar() {
   const initials = displayName.trim().charAt(0).toUpperCase();
   const isAdmin = user?.role === 'ADMIN';
   const isAlumni = user?.role === 'ALUMNI';
+  if (isAdmin) {
+    return (
+      <header className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-white shadow-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 gap-3 sm:gap-6">
+            {/* Left: Brand + Admin Pill */}
+            <div className="flex items-center gap-3">
+              <Link to="/admin" className="flex items-center gap-2 group" aria-label="SeniorSOS Admin Console">
+                <span className="font-black text-xl tracking-tight text-white group-hover:text-slate-200 transition-colors">
+                  Senior<span className="text-[#38bdf8]">SOS</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest text-purple-300 bg-purple-950/80 border border-purple-500/40 px-2.5 py-0.5 rounded-full uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                  Admin Console
+                </span>
+              </Link>
+            </div>
+
+            {/* Center: Portal Label */}
+            <div className="hidden sm:flex items-center space-x-1 text-xs font-semibold">
+              <span className="text-slate-300 px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/60 flex items-center gap-1.5">
+                <span className="text-emerald-400">●</span> Campus Administration & Governance
+              </span>
+            </div>
+
+            {/* Right: Admin Account & Logout */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-800/70 px-2.5 py-1 rounded-full border border-slate-700">
+                <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                  {initials}
+                </div>
+                <div className="text-left hidden md:block">
+                  <p className="text-xs font-bold text-slate-100 leading-tight">{displayName}</p>
+                  <p className="text-[10px] text-purple-300 font-semibold leading-none">Platform Admin</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-3 py-1.5 text-xs font-bold text-red-300 hover:text-white bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 rounded-lg transition-all"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)]">

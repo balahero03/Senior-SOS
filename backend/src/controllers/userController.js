@@ -517,8 +517,15 @@ const getUsers = asyncHandler(async (req, res) => {
     status: 'ACTIVE',
   };
 
-  // Role filter: STUDENT | ALUMNI
-  if (role && ['STUDENT', 'ALUMNI'].includes(role)) {
+  // Role filter: exclude ADMIN from student/alumni discovery
+  const requesterRole = req.user?.role;
+  if (requesterRole !== 'ADMIN') {
+    if (role && ['STUDENT', 'ALUMNI'].includes(role)) {
+      where.role = role;
+    } else {
+      where.role = { in: ['STUDENT', 'ALUMNI'] };
+    }
+  } else if (role && ['STUDENT', 'ALUMNI', 'ADMIN'].includes(role)) {
     where.role = role;
   }
 
