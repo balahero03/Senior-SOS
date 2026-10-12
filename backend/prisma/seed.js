@@ -372,6 +372,40 @@ async function main() {
         { name: 'System Design', proficiency: 'ADVANCED' },
       ],
     },
+    {
+      name: 'Kavitha Rajan',
+      email: 'kavitha.r@alumni.ssn.edu.in',
+      deptCode: 'ECE',
+      graduationYear: 2023,
+      companyKey: 'cisco',
+      designation: 'Network Systems Engineer',
+      experienceYears: 2.0,
+      verificationStatus: 'PENDING',
+      bio: 'SSN ECE 2023 graduate. Working on software-defined networking and edge routers at Cisco.',
+      careerInterests: 'Computer Networking, Cloud Infrastructure, SDN',
+      skills: [
+        { name: 'C++', proficiency: 'INTERMEDIATE' },
+        { name: 'Python', proficiency: 'ADVANCED' },
+        { name: 'Docker', proficiency: 'INTERMEDIATE' },
+      ],
+    },
+    {
+      name: 'Manoj Kumar',
+      email: 'manoj.kumar@alumni.ssn.edu.in',
+      deptCode: 'CSE',
+      graduationYear: 2024,
+      companyKey: 'google',
+      designation: 'Associate Software Engineer',
+      experienceYears: 1.0,
+      verificationStatus: 'PENDING',
+      bio: 'Recent 2024 graduate joining Google Core Developer Tools team. Passionate about compilers and distributed caching.',
+      careerInterests: 'Developer Tools, Distributed Systems',
+      skills: [
+        { name: 'Java', proficiency: 'ADVANCED' },
+        { name: 'System Design', proficiency: 'INTERMEDIATE' },
+        { name: 'PostgreSQL', proficiency: 'INTERMEDIATE' },
+      ],
+    },
   ];
 
   const alumniUsers = {};
@@ -413,22 +447,23 @@ async function main() {
       },
     });
 
+    const isPending = al.verificationStatus === 'PENDING';
     await prisma.alumniProfile.upsert({
       where: { userId: user.id },
       update: {
         companyId: companies[al.companyKey]?.id,
         designation: al.designation,
         experienceYears: al.experienceYears,
-        verificationStatus: 'APPROVED',
-        verifiedAt: new Date(),
+        verificationStatus: isPending ? 'PENDING' : 'APPROVED',
+        verifiedAt: isPending ? null : new Date(),
       },
       create: {
         userId: user.id,
         companyId: companies[al.companyKey]?.id,
         designation: al.designation,
         experienceYears: al.experienceYears,
-        verificationStatus: 'APPROVED',
-        verifiedAt: new Date(),
+        verificationStatus: isPending ? 'PENDING' : 'APPROVED',
+        verifiedAt: isPending ? null : new Date(),
       },
     });
 
