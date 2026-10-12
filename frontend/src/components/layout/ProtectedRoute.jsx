@@ -32,7 +32,7 @@ function LoadingSpinner() {
  * Wraps a route that requires authentication.
  * @param {{ children: React.ReactNode, requiredRole?: string }} props
  */
-export default function ProtectedRoute({ children, requiredRole }) {
+export default function ProtectedRoute({ children, requiredRole, allowAdmin = false }) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const location = useLocation();
 
@@ -42,6 +42,11 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Strict Admin route separation: Admins are directed to the Admin Console
+  if (user?.role === 'ADMIN' && requiredRole !== 'ADMIN' && !allowAdmin) {
+    return <Navigate to="/admin" replace />;
   }
 
   if (requiredRole && user?.role !== requiredRole) {

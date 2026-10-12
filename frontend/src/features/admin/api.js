@@ -42,3 +42,31 @@ export const updateUserStatus = (id, status) =>
  */
 export const getAuditLogs = (params = {}) =>
   api.get('/admin/audit-logs', { params }).then((r) => r.data.data);
+
+/**
+ * Create a new academic department.
+ * @param {{ code: string, name: string }} data
+ */
+export const createDepartment = (data) =>
+  api.post('/admin/departments', data).then((r) => r.data.data);
+
+/**
+ * Register a new employer company.
+ * @param {{ name: string }} data
+ */
+export const createCompany = (data) =>
+  api.post('/admin/companies', data).then((r) => r.data.data);
+
+/**
+ * Fetch all registered departments.
+ */
+export const getDepartmentsList = () =>
+  api.get('/departments').then((r) => r.data.data.departments);
+
+/**
+ * Fetch registered companies.
+ * @param {string} [q]
+ */
+export const getCompaniesList = (q) =>
+  api.get('/companies', { params: q ? { q } : {} }).then((r) => r.data.data.companies);
+

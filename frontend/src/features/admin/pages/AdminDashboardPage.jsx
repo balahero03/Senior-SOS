@@ -10,6 +10,11 @@ import {
   reviewVerification,
   getUsersList,
   updateUserStatus,
+  getAuditLogs,
+  createDepartment,
+  createCompany,
+  getDepartmentsList,
+  getCompaniesList,
 } from '../api';
 
 export default function AdminDashboardPage() {
@@ -20,20 +25,39 @@ export default function AdminDashboardPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const [activeTab, setActiveTab] = useState('verifications'); // 'verifications' | 'users'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'departments' | 'audit'
   const [stats, setStats] = useState({
     totalUsers: 0,
     studentsCount: 0,
     alumniCount: 0,
+    verifiedAlumniCount: 0,
     pendingVerifications: 0,
-    activePosts: 0,
+    activeConnectionsCount: 0,
+    totalDepartmentsCount: 0,
+    totalCompaniesCount: 0,
+    departmentsBreakdown: [],
   });
   const [verifications, setVerifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
 
+  // Master Data & Audit states
+  const [departments, setDepartments] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [companySearch, setCompanySearch] = useState('');
+  const [newDept, setNewDept] = useState({ code: '', name: '' });
+  const [newCompany, setNewCompany] = useState({ name: '' });
+  const [isSubmittingDept, setIsSubmittingDept] = useState(false);
+  const [isSubmittingCompany, setIsSubmittingCompany] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 15, total: 0, totalPages: 1 });
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [verificationSearch, setVerificationSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [feedback, setFeedback] = useState(null);
@@ -66,6 +90,7 @@ export default function AdminDashboardPage() {
         const params = { page, limit: 10 };
         if (searchQuery.trim()) params.q = searchQuery.trim();
         if (roleFilter) params.role = roleFilter;
+        if (statusFilter) params.status = statusFilter;
 
         const data = await getUsersList(params);
         setUsers(data?.users || []);
@@ -76,8 +101,36 @@ export default function AdminDashboardPage() {
         console.error('Failed to load users list:', err);
       }
     },
-    [searchQuery, roleFilter]
+    [searchQuery, roleFilter, statusFilter]
   );
+
+  const loadMasterData = useCallback(async () => {
+    try {
+      const [deptList, compList] = await Promise.all([
+        getDepartmentsList().catch(() => []),
+        getCompaniesList(companySearch).catch(() => []),
+      ]);
+      setDepartments(deptList || []);
+      setCompanies(compList || []);
+    } catch (err) {
+      console.error('Failed to load master data:', err);
+    }
+  }, [companySearch]);
+
+  const loadAuditLogs = useCallback(async (page = 1) => {
+    setIsAuditLoading(true);
+    try {
+      const data = await getAuditLogs({ page, limit: 15 });
+      setAuditLogs(data?.logs || []);
+      if (data?.pagination) {
+        setAuditPagination(data.pagination);
+      }
+    } catch (err) {
+      console.error('Failed to load audit logs:', err);
+    } finally {
+      setIsAuditLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
@@ -86,8 +139,52 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (activeTab === 'users') {
       loadUsers(1);
+    } else if (activeTab === 'masterData') {
+      loadMasterData();
+    } else if (activeTab === 'audit') {
+      loadAuditLogs(1);
     }
-  }, [activeTab, loadUsers]);
+  }, [activeTab, loadUsers, loadMasterData, loadAuditLogs]);
+
+  const handleCreateDepartment = async (e) => {
+    e.preventDefault();
+    if (!newDept.code.trim() || !newDept.name.trim()) {
+      showFeedback('Department code and name are required', 'error');
+      return;
+    }
+    setIsSubmittingDept(true);
+    try {
+      await createDepartment({ code: newDept.code.trim().toUpperCase(), name: newDept.name.trim() });
+      showFeedback(`Department ${newDept.code.toUpperCase()} registered successfully`);
+      setNewDept({ code: '', name: '' });
+      await Promise.all([loadMasterData(), loadDashboardData()]);
+    } catch (err) {
+      console.error('Failed to create department:', err);
+      showFeedback(err.response?.data?.error?.message || 'Failed to create department', 'error');
+    } finally {
+      setIsSubmittingDept(false);
+    }
+  };
+
+  const handleCreateCompany = async (e) => {
+    e.preventDefault();
+    if (!newCompany.name.trim()) {
+      showFeedback('Company name is required', 'error');
+      return;
+    }
+    setIsSubmittingCompany(true);
+    try {
+      await createCompany({ name: newCompany.name.trim() });
+      showFeedback(`Company "${newCompany.name.trim()}" registered successfully`);
+      setNewCompany({ name: '' });
+      await Promise.all([loadMasterData(), loadDashboardData()]);
+    } catch (err) {
+      console.error('Failed to create company:', err);
+      showFeedback(err.response?.data?.error?.message || 'Failed to create company', 'error');
+    } finally {
+      setIsSubmittingCompany(false);
+    }
+  };
 
   const handleReview = async (targetUserId, status, applicantName) => {
     const isApprove = status === 'APPROVED';
@@ -183,122 +280,255 @@ export default function AdminDashboardPage() {
           </button>}
         />
 
-        {/* 5 High-Level Stat Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          {/* Total Users */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Users</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.totalUsers}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Registered accounts</p>
-          </div>
-
-          {/* Students */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Students</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.studentsCount}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Enrolled learners</p>
-          </div>
-
-          {/* Alumni */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Alumni</span>
-              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.alumniCount}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Graduated mentors</p>
-          </div>
-
-          {/* Pending Verifications */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Queue</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-2xl font-black text-slate-900">{stats.pendingVerifications}</p>
-              {stats.pendingVerifications > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">
-                  Action
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">Pending alumni review</p>
-          </div>
-
-          {/* Feed Posts */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Feed Posts</span>
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.activePosts}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Community discussions</p>
-          </div>
-        </div>
-
         {/* Tab Controls */}
-        <div className="flex border-b border-slate-200 mb-6 gap-2">
+        <div className="flex border-b border-slate-200 mb-8 gap-1 sm:gap-2 overflow-x-auto pb-px">
           <button
-            onClick={() => setActiveTab('verifications')}
-            className={`pb-3 px-4 text-sm font-semibold transition-all relative flex items-center gap-2 ${
-              activeTab === 'verifications'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+            onClick={() => setActiveTab('overview')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'overview'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            Alumni Verification Queue
+            📊 Platform Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('verifications')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'verifications'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🛡️ Alumni Approvals
             {verifications.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">
                 {verifications.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`pb-3 px-4 text-sm font-semibold transition-all relative flex items-center gap-2 ${
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
               activeTab === 'users'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            User Management
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+            👥 User Directory
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
               {stats.totalUsers}
             </span>
           </button>
+          <button
+            onClick={() => setActiveTab('masterData')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'masterData'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🏛️ Campus Master Data
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'audit'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            📜 Security Audit Trail
+          </button>
         </div>
+
+        {/* TAB 1: Platform Overview & Executive Analytics */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* 6 Executive KPI Metric Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Users</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalUsers || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Active accounts</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Students</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.studentsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Enrolled learners</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider block">Verified Alumni</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.verifiedAlumniCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Vetted mentors</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pending Queue</span>
+                  {stats.pendingVerifications > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  )}
+                </div>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.pendingVerifications || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Awaiting review</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Connections</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.activeConnectionsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Network pairs</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Departments</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalDepartmentsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Engineering faculties</p>
+              </div>
+            </div>
+
+            {/* Department Breakdown & Quick Actions Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Department Enrollment Breakdown (2 cols) */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Academic Department Distribution</h3>
+                    <p className="text-xs text-slate-500">Student and alumni population per engineering faculty</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                    {stats.departmentsBreakdown?.length || 0} Departments
+                  </span>
+                </div>
+
+                <div className="space-y-3.5">
+                  {(stats.departmentsBreakdown || []).map((dept) => {
+                    const totalEnrolled = stats.totalUsers || 1;
+                    const pct = Math.min(100, Math.round(((dept.enrolledCount || 0) / totalEnrolled) * 100));
+                    return (
+                      <div key={dept.code} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-800">{dept.code} <span className="text-slate-400 font-normal">({dept.name})</span></span>
+                          <span className="font-semibold text-slate-600">{dept.enrolledCount} enrolled ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(5, pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Platform Health & Quick Action Shortcuts */}
+              <div className="space-y-6">
+                {/* Quick Action Cards */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
+                  <h3 className="text-sm font-bold text-slate-900">Administrator Shortcuts</h3>
+                  
+                  <button
+                    onClick={() => setActiveTab('verifications')}
+                    className="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/60 transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-amber-900">Review Alumni Applications</p>
+                      <p className="text-[11px] text-amber-700">{stats.pendingVerifications || 0} applications pending review</p>
+                    </div>
+                    <span className="text-amber-700 text-sm font-bold group-hover:translate-x-0.5 transition-transform">→</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('users')}
+                    className="w-full text-left p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Manage Campus Directory</p>
+                      <p className="text-[11px] text-slate-500">Search and moderate user accounts</p>
+                    </div>
+                    <span className="text-slate-400 text-sm font-bold group-hover:translate-x-0.5 transition-transform">→</span>
+                  </button>
+                </div>
+
+                {/* System Infrastructure Health */}
+                <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-2xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">System Infrastructure</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      All Operational
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs divide-y divide-slate-800">
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>PostgreSQL Relational DB</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">Connected</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>MongoDB Document Store</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">Connected</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>Auth Security Gateway</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">JWT httpOnly</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>Role-Based Route Guard</span>
+                      <span className="text-purple-300 font-mono text-[11px]">Strict Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: Alumni Verification Queue */}
         {activeTab === 'verifications' && (
-          <div>
+          <div className="space-y-4">
+            {/* Vetting Information Header Card */}
+            <div className="bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                    Trust & Verification
+                  </span>
+                  <span className="text-xs font-semibold text-purple-200">
+                    {verifications.length} Pending Submission{verifications.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <h3 className="text-base font-bold mt-1 text-white">Alumni Identity & Credentials Vetting</h3>
+                <p className="text-xs text-purple-200/80 max-w-2xl mt-0.5">
+                  Approve campus alumni to grant them official Verified Mentor status, unlock mentorship capabilities, and build student trust. Every decision generates an immutable audit record and notifies the applicant.
+                </p>
+              </div>
+
+              {verifications.length > 0 && (
+                <div className="relative min-w-[220px]">
+                  <input
+                    type="text"
+                    value={verificationSearch}
+                    onChange={(e) => setVerificationSearch(e.target.value)}
+                    placeholder="Filter by name or company..."
+                    className="w-full px-3 py-1.5 bg-white/10 placeholder-purple-300 text-white text-xs rounded-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-400/50"
+                  />
+                  {verificationSearch && (
+                    <button
+                      onClick={() => setVerificationSearch('')}
+                      className="absolute right-2 top-2 text-xs text-purple-300 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {isLoading ? (
               <div className="p-12 text-center text-slate-400">Loading pending verifications...</div>
             ) : verifications.length === 0 ? (
@@ -308,14 +538,25 @@ export default function AdminDashboardPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-bold text-slate-800">Verification Queue is Empty</h3>
+                <h3 className="text-lg font-bold text-slate-800">Verification Queue is Clear</h3>
                 <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
-                  All alumni registration submissions have been reviewed. New verification requests will appear here.
+                  All alumni registration submissions have been thoroughly vetted. When new graduates sign up, their credentials will populate here for institutional review.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {verifications.map((item) => {
+                {verifications
+                  .filter((item) => {
+                    if (!verificationSearch.trim()) return true;
+                    const query = verificationSearch.toLowerCase();
+                    return (
+                      item.name?.toLowerCase().includes(query) ||
+                      item.email?.toLowerCase().includes(query) ||
+                      item.company?.toLowerCase().includes(query) ||
+                      item.designation?.toLowerCase().includes(query)
+                    );
+                  })
+                  .map((item) => {
                   const isOperating = actionLoadingId === item.userId;
                   return (
                     <div
@@ -427,18 +668,33 @@ export default function AdminDashboardPage() {
                 </button>
               </form>
 
-              <div className="w-full md:w-auto flex items-center gap-3">
-                <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter Role:</label>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  <option value="">All Roles</option>
-                  <option value="STUDENT">Students</option>
-                  <option value="ALUMNI">Alumni</option>
-                  <option value="ADMIN">Admins</option>
-                </select>
+              <div className="w-full md:w-auto flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Role:</label>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">All Roles</option>
+                    <option value="STUDENT">Students</option>
+                    <option value="ALUMNI">Alumni</option>
+                    <option value="ADMIN">Admins</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">Status:</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="SUSPENDED">Suspended Only</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -449,10 +705,10 @@ export default function AdminDashboardPage() {
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                       <th className="py-3.5 px-6">User</th>
-                      <th className="py-3.5 px-6">Role</th>
+                      <th className="py-3.5 px-6">Role & Credential</th>
                       <th className="py-3.5 px-6">Department / Affiliation</th>
                       <th className="py-3.5 px-6">Status</th>
-                      <th className="py-3.5 px-6 text-right">Actions</th>
+                      <th className="py-3.5 px-6 text-right">Moderation Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
@@ -473,36 +729,55 @@ export default function AdminDashboardPage() {
                             {/* User details */}
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">
+                                <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
                                   {u.name?.charAt(0).toUpperCase() || 'U'}
                                 </div>
-                                <div>
-                                  <div className="font-semibold text-slate-900 flex items-center gap-2">
-                                    {u.name}
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-900 flex items-center gap-2 truncate">
+                                    <span>{u.name}</span>
                                     {isSelf && (
                                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
                                         You
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-xs text-slate-500">{u.email}</div>
+                                  <div className="text-xs text-slate-500 truncate">{u.email}</div>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Role */}
+                            {/* Role & Credential */}
                             <td className="py-4 px-6">
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                  u.role === 'ADMIN'
-                                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                    : u.role === 'ALUMNI'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                }`}
-                              >
-                                {u.role}
-                              </span>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span
+                                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                    u.role === 'ADMIN'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                      : u.role === 'ALUMNI'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  }`}
+                                >
+                                  {u.role}
+                                </span>
+                                {u.role === 'ALUMNI' && (
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                      u.verificationStatus === 'APPROVED'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                        : u.verificationStatus === 'PENDING'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                        : 'bg-slate-50 text-slate-500 border-slate-200'
+                                    }`}
+                                  >
+                                    {u.verificationStatus === 'APPROVED'
+                                      ? '✓ Verified Mentor'
+                                      : u.verificationStatus === 'PENDING'
+                                      ? '⏳ Pending Review'
+                                      : 'Unverified'}
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Affiliation */}
@@ -585,6 +860,320 @@ export default function AdminDashboardPage() {
                     <button
                       disabled={pagination.page >= pagination.totalPages}
                       onClick={() => loadUsers(pagination.page + 1)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Campus Master Data Management */}
+        {activeTab === 'masterData' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-2xl p-6 shadow-sm">
+              <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                Institutional Configuration
+              </span>
+              <h2 className="text-xl font-bold mt-2">Campus Master Data Registry</h2>
+              <p className="text-xs text-indigo-200/80 max-w-2xl mt-1">
+                Maintain authoritative lists of engineering departments and recognized employer companies. These values automatically synchronize across student onboarding, alumni registration, and filter facets.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Academic Departments */}
+              <div className="space-y-6">
+                {/* Add Department Card */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>🏛️</span> Add Academic Department
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Register a new engineering faculty or academic degree department.</p>
+
+                  <form onSubmit={handleCreateDepartment} className="mt-4 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Code</label>
+                        <input
+                          type="text"
+                          required
+                          value={newDept.code}
+                          onChange={(e) => setNewDept({ ...newDept, code: e.target.value.toUpperCase() })}
+                          placeholder="e.g. AIML"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={newDept.name}
+                          onChange={(e) => setNewDept({ ...newDept, name: e.target.value })}
+                          placeholder="e.g. Artificial Intelligence & Machine Learning"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingDept}
+                      className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                    >
+                      {isSubmittingDept ? 'Registering...' : '+ Register Department'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Departments List */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Registered Departments</h4>
+                      <p className="text-xs text-slate-500">{departments.length} active faculties</p>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                    {departments.length === 0 ? (
+                      <p className="p-6 text-center text-xs text-slate-400">No departments loaded</p>
+                    ) : (
+                      departments.map((dept) => {
+                        const breakdown = stats.departmentsBreakdown?.find((d) => d.code === dept.code);
+                        return (
+                          <div key={dept.id || dept.code} className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className="w-12 text-center py-1 rounded-lg bg-indigo-50 text-indigo-700 font-mono text-xs font-bold border border-indigo-200/80">
+                                {dept.code}
+                              </span>
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{dept.name}</p>
+                                <p className="text-[11px] text-slate-400">Institutional Faculty</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                              {breakdown ? `${breakdown.enrolledCount} enrolled` : 'Active'}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Partner Employers */}
+              <div className="space-y-6">
+                {/* Add Company Card */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <span>🏢</span> Register Partner Employer
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Add hiring organizations and alumni employment partners.</p>
+
+                  <form onSubmit={handleCreateCompany} className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      required
+                      value={newCompany.name}
+                      onChange={(e) => setNewCompany({ name: e.target.value })}
+                      placeholder="e.g. Microsoft, Google, Zoho"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmittingCompany}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {isSubmittingCompany ? 'Adding...' : '+ Add Employer'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Companies List with Search */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Partner Employers</h4>
+                      <p className="text-xs text-slate-500">{companies.length} verified corporate entities</p>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={companySearch}
+                        onChange={(e) => {
+                          setCompanySearch(e.target.value);
+                          getCompaniesList(e.target.value).then(setCompanies).catch(() => {});
+                        }}
+                        placeholder="Search employers..."
+                        className="w-full sm:w-48 pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                      <span className="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 max-h-[420px] overflow-y-auto">
+                    {companies.length === 0 ? (
+                      <p className="p-6 text-center text-xs text-slate-400">No partner companies matching query</p>
+                    ) : (
+                      companies.map((c) => (
+                        <div key={c.id} className="p-3.5 px-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200/60">
+                              {c.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-xs font-bold text-slate-900">{c.name}</span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                            Partner Org
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: Security Audit Logs Viewer */}
+        {activeTab === 'audit' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                  Regulatory Compliance & Governance
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">Institutional Audit Trail</h3>
+                <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+                  Append-only immutable record capturing administrative decisions, verification approvals, account status alterations, and metadata changes.
+                </p>
+              </div>
+
+              <button
+                onClick={() => loadAuditLogs(auditPagination.page)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5 self-start md:self-auto"
+              >
+                <span>↻</span> Refresh Audit Stream
+              </button>
+            </div>
+
+            {/* Audit Logs Table */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Timestamp</th>
+                      <th className="py-3.5 px-6">Administrator</th>
+                      <th className="py-3.5 px-6">Action</th>
+                      <th className="py-3.5 px-6">Target Entity</th>
+                      <th className="py-3.5 px-6">Modification Metadata</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {isAuditLoading ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          Loading audit records...
+                        </td>
+                      </tr>
+                    ) : auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          No audit entries recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      auditLogs.map((log) => {
+                        const dateFormatted = new Date(log.createdAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        });
+
+                        const actionStyles = {
+                          ALUMNI_VERIFICATION: 'bg-purple-50 text-purple-700 border-purple-200',
+                          USER_STATUS_CHANGE: 'bg-amber-50 text-amber-700 border-amber-200',
+                          DEPARTMENT_CREATED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                          COMPANY_CREATED: 'bg-blue-50 text-blue-700 border-blue-200',
+                        }[log.action] || 'bg-slate-50 text-slate-700 border-slate-200';
+
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                            {/* Timestamp */}
+                            <td className="py-3.5 px-6 font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                              {dateFormatted}
+                            </td>
+
+                            {/* Actor */}
+                            <td className="py-3.5 px-6">
+                              <div className="font-semibold text-slate-800">{log.actor?.name || 'System Admin'}</div>
+                              <div className="text-[11px] text-slate-400">{log.actor?.email || 'admin@seniorsos.edu'}</div>
+                            </td>
+
+                            {/* Action */}
+                            <td className="py-3.5 px-6 whitespace-nowrap">
+                              <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] border ${actionStyles}`}>
+                                {log.action}
+                              </span>
+                            </td>
+
+                            {/* Target */}
+                            <td className="py-3.5 px-6 font-mono text-[11px] text-slate-600">
+                              <span className="font-bold text-slate-700">{log.targetType || 'ENTITY'}</span>
+                              <span className="block text-[10px] text-slate-400 truncate max-w-[140px]">{log.targetId}</span>
+                            </td>
+
+                            {/* Metadata */}
+                            <td className="py-3.5 px-6">
+                              <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2 font-mono text-[11px] text-slate-700 max-w-sm">
+                                {typeof log.metadata === 'object' && log.metadata !== null ? (
+                                  Object.entries(log.metadata).map(([k, v]) => (
+                                    <div key={k} className="flex gap-2">
+                                      <span className="text-slate-400">{k}:</span>
+                                      <span className="font-bold text-slate-900">{String(v)}</span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span>{JSON.stringify(log.metadata)}</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Audit Pagination */}
+              {auditPagination.totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Page {auditPagination.page} of {auditPagination.totalPages} ({auditPagination.total} total log entries)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={auditPagination.page <= 1}
+                      onClick={() => loadAuditLogs(auditPagination.page - 1)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      disabled={auditPagination.page >= auditPagination.totalPages}
+                      onClick={() => loadAuditLogs(auditPagination.page + 1)}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"
                     >
                       Next

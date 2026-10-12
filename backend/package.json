@@ -10,7 +10,9 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "test": "node scripts/testSuite.js",
+    "test:e2e": "node scripts/testSuite.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

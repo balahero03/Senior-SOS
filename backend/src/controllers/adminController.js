@@ -9,6 +9,7 @@ const { prisma } = require('../database/postgres');
 const { Post } = require('../models');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { createNotification } = require('../services/notificationService');
 
 /**
  * GET /api/admin/stats
@@ -22,13 +23,31 @@ const getAdminStats = asyncHandler(async (req, res) => {
     studentsCount,
     alumniCount,
     pendingVerifications,
-    activePosts,
+    verifiedAlumniCount,
+    activeConnectionsCount,
+    totalDepartmentsCount,
+    totalCompaniesCount,
+    departmentsWithCounts,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: 'STUDENT' } }),
-    prisma.user.count({ where: { role: 'ALUMNI' } }),
+    prisma.user.count({ where: { status: 'ACTIVE' } }),
+    prisma.user.count({ where: { role: 'STUDENT', status: 'ACTIVE' } }),
+    prisma.user.count({ where: { role: 'ALUMNI', status: 'ACTIVE' } }),
     prisma.alumniProfile.count({ where: { verificationStatus: 'PENDING' } }),
-    Post.countDocuments({ status: 'ACTIVE' }),
+    prisma.alumniProfile.count({ where: { verificationStatus: 'APPROVED' } }),
+    prisma.connection.count(),
+    prisma.department.count(),
+    prisma.company.count(),
+    prisma.department.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        _count: {
+          select: { academicProfiles: true },
+        },
+      },
+      orderBy: { code: 'asc' },
+    }),
   ]);
 
   res.json({
@@ -39,7 +58,15 @@ const getAdminStats = asyncHandler(async (req, res) => {
         studentsCount,
         alumniCount,
         pendingVerifications,
-        activePosts,
+        verifiedAlumniCount,
+        activeConnectionsCount,
+        totalDepartmentsCount,
+        totalCompaniesCount,
+        departmentsBreakdown: departmentsWithCounts.map((d) => ({
+          code: d.code,
+          name: d.name,
+          enrolledCount: d._count.academicProfiles,
+        })),
       },
     },
   });
@@ -152,6 +179,21 @@ const updateVerificationStatus = asyncHandler(async (req, res) => {
     return { updatedProfile, auditLog };
   });
 
+  // Dispatch in-app notification to the reviewed alumnus
+  await createNotification({
+    recipientId: targetUserId,
+    actorId: adminId,
+    type: status === 'APPROVED' ? 'ALUMNI_VERIFIED' : 'ALUMNI_REJECTED',
+    payload: {
+      status,
+      message:
+        status === 'APPROVED'
+          ? 'Congratulations! Your alumni credentials have been verified by the administrator. Welcome to the verified mentor network!'
+          : 'Your alumni verification request was declined. Please verify your graduation and employer details.',
+      reviewedAt: new Date().toISOString(),
+    },
+  });
+
   res.json({
     success: true,
     data: {
@@ -202,6 +244,14 @@ const updateUserStatus = asyncHandler(async (req, res) => {
       },
     });
 
+    // If suspended, invalidate all active session tokens immediately
+    if (status === 'SUSPENDED') {
+      await tx.refreshToken.updateMany({
+        where: { userId: targetUserId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    }
+
     const auditLog = await tx.auditLog.create({
       data: {
         actorId: adminId,
@@ -216,6 +266,20 @@ const updateUserStatus = asyncHandler(async (req, res) => {
     });
 
     return { updatedUser, auditLog };
+  });
+
+  // Notify the user about their account status change
+  await createNotification({
+    recipientId: targetUserId,
+    actorId: adminId,
+    type: status === 'SUSPENDED' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_REACTIVATED',
+    payload: {
+      status,
+      message:
+        status === 'SUSPENDED'
+          ? 'Your account has been suspended by campus administration. Contact support if you believe this is an error.'
+          : 'Your SeniorSOS account has been reactivated. You now have full access restored.',
+    },
   });
 
   res.json({
@@ -270,10 +334,128 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * POST /api/admin/departments
+ * Body: { code, name }
+ * Creates a new academic department and records to audit_logs.
+ */
+const createDepartment = asyncHandler(async (req, res) => {
+  const adminId = req.user.id || req.user.sub;
+  const { code, name } = req.body;
+
+  if (!code || !code.trim() || !name || !name.trim()) {
+    throw new AppError('Department code and name are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  const normalizedName = name.trim();
+
+  const existingDept = await prisma.department.findUnique({
+    where: { code: normalizedCode },
+  });
+
+  if (existingDept) {
+    throw new AppError(`Department with code ${normalizedCode} already exists`, 409, 'CONFLICT');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const department = await tx.department.create({
+      data: {
+        code: normalizedCode,
+        name: normalizedName,
+      },
+    });
+
+    const auditLog = await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'DEPARTMENT_CREATED',
+        targetType: 'DEPARTMENT',
+        targetId: department.id,
+        metadata: {
+          code: normalizedCode,
+          name: normalizedName,
+        },
+      },
+    });
+
+    return { department, auditLog };
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      department: result.department,
+      auditLogId: result.auditLog.id,
+      message: `Department ${normalizedCode} created successfully`,
+    },
+  });
+});
+
+/**
+ * POST /api/admin/companies
+ * Body: { name }
+ * Registers a new employer company and records to audit_logs.
+ */
+const createCompany = asyncHandler(async (req, res) => {
+  const adminId = req.user.id || req.user.sub;
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    throw new AppError('Company name is required', 400, 'VALIDATION_ERROR');
+  }
+
+  const trimmedName = name.trim();
+  const nameKey = trimmedName.toLowerCase();
+
+  const existingCompany = await prisma.company.findUnique({
+    where: { nameKey },
+  });
+
+  if (existingCompany) {
+    throw new AppError(`Company "${trimmedName}" already exists`, 409, 'CONFLICT');
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const company = await tx.company.create({
+      data: {
+        name: trimmedName,
+        nameKey,
+      },
+    });
+
+    const auditLog = await tx.auditLog.create({
+      data: {
+        actorId: adminId,
+        action: 'COMPANY_CREATED',
+        targetType: 'COMPANY',
+        targetId: company.id,
+        metadata: {
+          name: trimmedName,
+          nameKey,
+        },
+      },
+    });
+
+    return { company, auditLog };
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      company: result.company,
+      auditLogId: result.auditLog.id,
+      message: `Company "${trimmedName}" created successfully`,
+    },
+  });
+});
+
 module.exports = {
   getAdminStats,
   getPendingVerifications,
   updateVerificationStatus,
   updateUserStatus,
   getAuditLogs,
+  createDepartment,
+  createCompany,
 };

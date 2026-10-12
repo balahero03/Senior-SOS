@@ -17,6 +17,7 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     initAuth();
@@ -108,9 +109,9 @@ export default function App() {
         <Route path="/feed" element={<Navigate to="/dashboard" replace />} />
         <Route path="/mentorship" element={<Navigate to="/dashboard" replace />} />
 
-        {/* Default route redirects to dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Default route redirects role-aware */}
+        <Route path="/" element={<Navigate to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />} />
+        <Route path="*" element={<Navigate to={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} replace />} />
       </Routes>
     </BrowserRouter>
   );

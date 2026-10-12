@@ -49,8 +49,10 @@ export default function LoginPage() {
 
     try {
       const data = await loginUser({ email: form.email, password: form.password });
-      setUser(data.data.user);
-      navigate(from, { replace: true });
+      const loggedInUser = data.data.user;
+      setUser(loggedInUser);
+      const targetPath = from !== '/dashboard' ? from : (loggedInUser.role === 'ADMIN' ? '/admin' : '/dashboard');
+      navigate(targetPath, { replace: true });
     } catch (err) {
       const message =
         err.response?.data?.error?.message ||
@@ -93,6 +95,48 @@ export default function LoginPage() {
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
                 Stay connected with your campus community & alumni
               </p>
+            </div>
+
+            {/* Quick Demo Fill Buttons */}
+            <div className="bg-slate-50/90 border border-slate-200/90 rounded-xl p-2.5">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                One-Click Demo Fill
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm({ email: 'student.demo@ssn.edu.in', password: 'Password@123' });
+                    setErrors({});
+                    setApiError('');
+                  }}
+                  className="px-2 py-1.5 text-[11px] font-semibold bg-white hover:bg-blue-50 hover:text-[#0a66c2] hover:border-blue-200 border border-slate-200 rounded-lg text-slate-700 transition-all shadow-2xs text-center"
+                >
+                  🎓 Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm({ email: 'alumni.demo@ssn.edu.in', password: 'Password@123' });
+                    setErrors({});
+                    setApiError('');
+                  }}
+                  className="px-2 py-1.5 text-[11px] font-semibold bg-white hover:bg-amber-50 hover:text-amber-800 hover:border-amber-200 border border-slate-200 rounded-lg text-slate-700 transition-all shadow-2xs text-center"
+                >
+                  💼 Alumni
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm({ email: 'admin@seniorsos.edu.in', password: 'Password@123' });
+                    setErrors({});
+                    setApiError('');
+                  }}
+                  className="px-2 py-1.5 text-[11px] font-semibold bg-white hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 border border-slate-200 rounded-lg text-slate-700 transition-all shadow-2xs text-center"
+                >
+                  👑 Admin
+                </button>
+              </div>
             </div>
 
             {/* Error Banner */}
