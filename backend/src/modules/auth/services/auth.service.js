@@ -291,6 +291,46 @@ async function changePassword(userId, { currentPassword, newPassword }) {
   return { message: 'Password updated successfully' };
 }
 
+/**
+ * Reset password using email and department verification.
+ * Verifies that the user exists, is active, and their registered academic department matches.
+ *
+ * @param {{ email: string, departmentId: string, newPassword: string }} data
+ */
+async function resetPasswordWithDepartment({ email, departmentId, newPassword }) {
+  const user = await authRepo.findUserByEmail(email);
+  if (!user) {
+    throw new AppError('The provided email and department do not match our records.', 400, 'INVALID_VERIFICATION');
+  }
+
+  if (user.status === 'SUSPENDED' || user.status === 'DEACTIVATED') {
+    throw new AppError('This account is not eligible for password reset. Please contact support.', 403, 'ACCOUNT_INACTIVE');
+  }
+
+  // Resolve department
+  const resolvedDeptId = await authRepo.resolveDepartmentId(departmentId);
+  const userDeptId = user.academicProfile?.departmentId;
+  const userDeptCode = user.academicProfile?.department?.code?.toUpperCase();
+  const inputDeptClean = departmentId?.toUpperCase().trim();
+
+  const isMatch =
+    (resolvedDeptId && userDeptId && resolvedDeptId === userDeptId) ||
+    (userDeptCode && (userDeptCode === inputDeptClean || userDeptCode === resolvedDeptId));
+
+  if (!isMatch) {
+    throw new AppError('The provided email and department do not match our records.', 400, 'INVALID_VERIFICATION');
+  }
+
+  // Hash new password and update
+  const newHash = await hashPassword(newPassword);
+  await authRepo.updateUserPassword(user.id, newHash);
+
+  // Invalidate all active sessions across devices
+  await authRepo.revokeAllUserRefreshTokens(user.id);
+
+  return { message: 'Password has been reset successfully. You can now log in with your new password.' };
+}
+
 module.exports = {
   register,
   login,
@@ -299,6 +339,8 @@ module.exports = {
   logoutAll,
   getMe,
   changePassword,
+  resetPasswordWithDepartment,
   verifyAccessToken,
 };
+
 

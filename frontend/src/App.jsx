@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './stores/authStore';
 import LoginPage from './features/auth/pages/LoginPage';
 import RegisterPage from './features/auth/pages/RegisterPage';
+import ForgotPasswordPage from './features/auth/pages/ForgotPasswordPage';
 import DashboardPage from './features/dashboard/pages/DashboardPage';
 import FeedPage from './features/community/pages/FeedPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
@@ -29,6 +30,7 @@ export default function App() {
         {/* Public auth routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Protected app routes */}
         <Route

@@ -100,6 +100,27 @@ const loginSchema = z.object({
     .min(1, 'Password is required'),
 });
 
+// ─── Reset Password (Forgot Password via Email + Department) ──────────────────
+
+const resetPasswordSchema = z
+  .object({
+    email: emailField,
+    departmentId: z
+      .string({ required_error: 'Department is required' })
+      .min(1, 'Department is required'),
+    newPassword: passwordField,
+    confirmPassword: z.string({ required_error: 'Please confirm your new password' }),
+  })
+  .superRefine((data, ctx) => {
+    if (data.newPassword !== data.confirmPassword) {
+      ctx.addIssue({
+        path: ['confirmPassword'],
+        code: z.ZodIssueCode.custom,
+        message: 'Passwords do not match',
+      });
+    }
+  });
+
 // ─── Validate helper ──────────────────────────────────────────────────────────
 
 /**
@@ -126,5 +147,7 @@ function validate(schema, data) {
 module.exports = {
   registerSchema,
   loginSchema,
+  resetPasswordSchema,
   validate,
 };
+

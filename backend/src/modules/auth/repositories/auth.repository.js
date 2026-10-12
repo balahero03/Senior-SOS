@@ -17,7 +17,9 @@ async function findUserByEmail(email) {
   return prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
     include: {
-      academicProfile: true,
+      academicProfile: {
+        include: { department: true },
+      },
       alumniProfile: true,
     },
   });

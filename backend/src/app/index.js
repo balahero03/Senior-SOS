@@ -73,7 +73,7 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/departments', requireAuth, userController.getDepartments);
+app.use('/api/departments', userController.getDepartments);
 app.use('/api/companies', requireAuth, userController.getCompanies);
 app.use('/api/skills', requireAuth, userController.getSkills);
 app.use('/api/posts', postRoutes);
