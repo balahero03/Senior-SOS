@@ -22,13 +22,31 @@ const getAdminStats = asyncHandler(async (req, res) => {
     studentsCount,
     alumniCount,
     pendingVerifications,
-    activePosts,
+    verifiedAlumniCount,
+    activeConnectionsCount,
+    totalDepartmentsCount,
+    totalCompaniesCount,
+    departmentsWithCounts,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: 'STUDENT' } }),
-    prisma.user.count({ where: { role: 'ALUMNI' } }),
+    prisma.user.count({ where: { status: 'ACTIVE' } }),
+    prisma.user.count({ where: { role: 'STUDENT', status: 'ACTIVE' } }),
+    prisma.user.count({ where: { role: 'ALUMNI', status: 'ACTIVE' } }),
     prisma.alumniProfile.count({ where: { verificationStatus: 'PENDING' } }),
-    Post.countDocuments({ status: 'ACTIVE' }),
+    prisma.alumniProfile.count({ where: { verificationStatus: 'APPROVED' } }),
+    prisma.connection.count(),
+    prisma.department.count(),
+    prisma.company.count(),
+    prisma.department.findMany({
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        _count: {
+          select: { academicProfiles: true },
+        },
+      },
+      orderBy: { code: 'asc' },
+    }),
   ]);
 
   res.json({
@@ -39,7 +57,15 @@ const getAdminStats = asyncHandler(async (req, res) => {
         studentsCount,
         alumniCount,
         pendingVerifications,
-        activePosts,
+        verifiedAlumniCount,
+        activeConnectionsCount,
+        totalDepartmentsCount,
+        totalCompaniesCount,
+        departmentsBreakdown: departmentsWithCounts.map((d) => ({
+          code: d.code,
+          name: d.name,
+          enrolledCount: d._count.academicProfiles,
+        })),
       },
     },
   });

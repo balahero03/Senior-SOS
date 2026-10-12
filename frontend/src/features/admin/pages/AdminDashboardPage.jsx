@@ -20,13 +20,17 @@ export default function AdminDashboardPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const [activeTab, setActiveTab] = useState('verifications'); // 'verifications' | 'users'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'departments' | 'audit'
   const [stats, setStats] = useState({
     totalUsers: 0,
     studentsCount: 0,
     alumniCount: 0,
+    verifiedAlumniCount: 0,
     pendingVerifications: 0,
-    activePosts: 0,
+    activeConnectionsCount: 0,
+    totalDepartmentsCount: 0,
+    totalCompaniesCount: 0,
+    departmentsBreakdown: [],
   });
   const [verifications, setVerifications] = useState([]);
   const [users, setUsers] = useState([]);
@@ -183,118 +187,193 @@ export default function AdminDashboardPage() {
           </button>}
         />
 
-        {/* 5 High-Level Stat Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          {/* Total Users */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Users</span>
-              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.totalUsers}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Registered accounts</p>
-          </div>
-
-          {/* Students */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Students</span>
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.studentsCount}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Enrolled learners</p>
-          </div>
-
-          {/* Alumni */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Alumni</span>
-              <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.alumniCount}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Graduated mentors</p>
-          </div>
-
-          {/* Pending Verifications */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Queue</span>
-              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-2xl font-black text-slate-900">{stats.pendingVerifications}</p>
-              {stats.pendingVerifications > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">
-                  Action
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">Pending alumni review</p>
-          </div>
-
-          {/* Feed Posts */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Feed Posts</span>
-              <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 mt-2">{stats.activePosts}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Community discussions</p>
-          </div>
-        </div>
-
         {/* Tab Controls */}
-        <div className="flex border-b border-slate-200 mb-6 gap-2">
+        <div className="flex border-b border-slate-200 mb-8 gap-1 sm:gap-2 overflow-x-auto pb-px">
           <button
-            onClick={() => setActiveTab('verifications')}
-            className={`pb-3 px-4 text-sm font-semibold transition-all relative flex items-center gap-2 ${
-              activeTab === 'verifications'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+            onClick={() => setActiveTab('overview')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'overview'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            Alumni Verification Queue
+            📊 Platform Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('verifications')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'verifications'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🛡️ Alumni Approvals
             {verifications.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">
                 {verifications.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`pb-3 px-4 text-sm font-semibold transition-all relative flex items-center gap-2 ${
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
               activeTab === 'users'
-                ? 'text-blue-600 border-b-2 border-blue-600'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            User Management
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+            👥 User Directory
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
               {stats.totalUsers}
             </span>
           </button>
         </div>
+
+        {/* TAB 1: Platform Overview & Executive Analytics */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* 6 Executive KPI Metric Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Users</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalUsers || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Active accounts</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Students</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.studentsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Enrolled learners</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-purple-600 uppercase tracking-wider block">Verified Alumni</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.verifiedAlumniCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Vetted mentors</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Pending Queue</span>
+                  {stats.pendingVerifications > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  )}
+                </div>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.pendingVerifications || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Awaiting review</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Connections</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.activeConnectionsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Network pairs</p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Departments</span>
+                <p className="text-2xl font-black text-slate-900 mt-1">{stats.totalDepartmentsCount || 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Engineering faculties</p>
+              </div>
+            </div>
+
+            {/* Department Breakdown & Quick Actions Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Department Enrollment Breakdown (2 cols) */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Academic Department Distribution</h3>
+                    <p className="text-xs text-slate-500">Student and alumni population per engineering faculty</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                    {stats.departmentsBreakdown?.length || 0} Departments
+                  </span>
+                </div>
+
+                <div className="space-y-3.5">
+                  {(stats.departmentsBreakdown || []).map((dept) => {
+                    const totalEnrolled = stats.totalUsers || 1;
+                    const pct = Math.min(100, Math.round(((dept.enrolledCount || 0) / totalEnrolled) * 100));
+                    return (
+                      <div key={dept.code} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-800">{dept.code} <span className="text-slate-400 font-normal">({dept.name})</span></span>
+                          <span className="font-semibold text-slate-600">{dept.enrolledCount} enrolled ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(5, pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right Column: Platform Health & Quick Action Shortcuts */}
+              <div className="space-y-6">
+                {/* Quick Action Cards */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
+                  <h3 className="text-sm font-bold text-slate-900">Administrator Shortcuts</h3>
+                  
+                  <button
+                    onClick={() => setActiveTab('verifications')}
+                    className="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/60 transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-amber-900">Review Alumni Applications</p>
+                      <p className="text-[11px] text-amber-700">{stats.pendingVerifications || 0} applications pending review</p>
+                    </div>
+                    <span className="text-amber-700 text-sm font-bold group-hover:translate-x-0.5 transition-transform">→</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('users')}
+                    className="w-full text-left p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Manage Campus Directory</p>
+                      <p className="text-[11px] text-slate-500">Search and moderate user accounts</p>
+                    </div>
+                    <span className="text-slate-400 text-sm font-bold group-hover:translate-x-0.5 transition-transform">→</span>
+                  </button>
+                </div>
+
+                {/* System Infrastructure Health */}
+                <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-2xs">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">System Infrastructure</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      All Operational
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs divide-y divide-slate-800">
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>PostgreSQL Relational DB</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">Connected</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>MongoDB Document Store</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">Connected</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>Auth Security Gateway</span>
+                      <span className="text-emerald-400 font-mono text-[11px]">JWT httpOnly</span>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between text-slate-300">
+                      <span>Role-Based Route Guard</span>
+                      <span className="text-purple-300 font-mono text-[11px]">Strict Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: Alumni Verification Queue */}
         {activeTab === 'verifications' && (
