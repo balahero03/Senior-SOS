@@ -1,5 +1,5 @@
 // frontend/src/features/community/pages/FeedPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 import useAuthStore from '../../../stores/authStore';
@@ -365,6 +365,9 @@ function PostComposer({ onPostCreated, user }) {
   );
 }
 
+// How many posts load per slot as the reader scrolls.
+const POSTS_PER_PAGE = 5;
+
 // ─── Main FeedPage ─────────────────────────────────────────────────────────────
 export default function FeedPage() {
   const { user } = useAuthStore();
@@ -375,25 +378,47 @@ export default function FeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [recommendedUsers, setRecommendedUsers] = useState([]);
   const [connectingId, setConnectingId] = useState(null);
+  // Read synchronously by the observer callback, which closes over stale state.
+  const loadingRef = useRef(false);
+  const sentinelRef = useRef(null);
 
   const displayName = user?.name || 'there';
   const initials = displayName.charAt(0).toUpperCase();
   const isAlumni = user?.role === 'ALUMNI';
 
   const loadPosts = useCallback(async (pageNum = 1) => {
+    // loadingRef guards against the observer firing again while a page is
+    // still in flight, which would skip or duplicate a slot.
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError('');
     try {
-      const data = await getPosts(pageNum);
-      if (pageNum === 1) {
-        setPosts(data.posts || []);
-      } else {
-        setPosts((prev) => [...prev, ...(data.posts || [])]);
-      }
-      setHasMore((data.posts || []).length >= (data.pageSize || 10));
+      const data = await getPosts(pageNum, undefined, POSTS_PER_PAGE);
+      const batch = data.posts || [];
+
+      setPosts((prev) => {
+        if (pageNum === 1) return batch;
+        // De-duplicate: a post created or deleted between fetches shifts the
+        // server-side offset, so the same _id can arrive twice.
+        const seen = new Set(prev.map((p) => p._id));
+        return [...prev, ...batch.filter((p) => !seen.has(p._id))];
+      });
+
+      // Trust the server's own pagination rather than inferring from length.
+      const { page: current, totalPages } = data.pagination || {};
+      setHasMore(
+        totalPages != null && current != null
+          ? current < totalPages
+          : batch.length === POSTS_PER_PAGE,
+      );
+      setPage(pageNum);
     } catch (err) {
       setError(err?.response?.data?.error?.message || 'Could not load posts.');
+      // Stop the observer retrying a failing request on every scroll tick.
+      setHasMore(false);
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -404,6 +429,25 @@ export default function FeedPage() {
       .then((res) => setRecommendedUsers(res.users || []))
       .catch(() => {});
   }, [loadPosts]);
+
+  // Load the next slot when the sentinel below the last post scrolls into
+  // view, a little before it is actually reached.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingRef.current) {
+          loadPosts(page + 1);
+        }
+      },
+      { rootMargin: '400px 0px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, page, loadPosts]);
 
   const handlePostCreated = (newPost) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -437,11 +481,10 @@ export default function FeedPage() {
     }
   };
 
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadPosts(nextPage);
-  };
+  // Kept as a fallback for when the observer cannot fire — no JS scroll
+  // events on some browsers, or a viewport tall enough that the sentinel
+  // never leaves and re-enters view.
+  const handleLoadMore = () => loadPosts(page + 1);
 
   const handleConnect = async (targetUserId) => {
     setConnectingId(targetUserId);
@@ -534,14 +577,39 @@ export default function FeedPage() {
                   />
                 ))}
 
-                {hasMore && (
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="w-full py-2.5 text-xs font-bold text-[#0a66c2] hover:bg-blue-50 rounded-lg border border-blue-200 bg-white transition-colors"
-                  >
-                    {loading ? 'Loading...' : 'Load more updates'}
-                  </button>
+                {/* Scroll target: crossing this loads the next slot. */}
+                <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+
+                {hasMore ? (
+                  loading ? (
+                    <div className="space-y-3" aria-live="polite">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="feed-card p-4 animate-pulse space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-200" />
+                            <div className="space-y-1.5 flex-1">
+                              <div className="h-3 bg-slate-200 rounded w-32" />
+                              <div className="h-2 bg-slate-100 rounded w-20" />
+                            </div>
+                          </div>
+                          <div className="h-3 bg-slate-200 rounded w-full" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleLoadMore}
+                      className="w-full py-2.5 text-xs font-bold text-[#0a66c2] hover:bg-blue-50 rounded-lg border border-blue-200 bg-white transition-colors"
+                    >
+                      Load more updates
+                    </button>
+                  )
+                ) : (
+                  posts.length > 0 && (
+                    <p className="py-4 text-center text-xs text-slate-400">
+                      You&apos;re all caught up.
+                    </p>
+                  )
                 )}
               </div>
             )}
