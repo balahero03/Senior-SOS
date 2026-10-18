@@ -70,3 +70,23 @@ export const getDepartmentsList = () =>
 export const getCompaniesList = (q) =>
   api.get('/companies', { params: q ? { q } : {} }).then((r) => r.data.data.companies);
 
+
+/**
+ * Fetch API transcript entries with filters.
+ * @param {object} params - { date, from, to, session, user, role, method, path, status, minMs, q, page, limit }
+ */
+export const getApiLogs = (params = {}) =>
+  api.get('/admin/logs', { params }).then((r) => r.data.data);
+
+/**
+ * Fetch the values needed to populate the log filter dropdowns.
+ */
+export const getApiLogsMeta = () =>
+  api.get('/admin/logs/meta').then((r) => r.data.data);
+
+/**
+ * Absolute URL for downloading one day's raw .txt log.
+ * @param {string} date - YYYY-MM-DD
+ */
+export const apiLogDownloadUrl = (date) =>
+  `${api.defaults.baseURL}/admin/logs/download?date=${encodeURIComponent(date)}`;

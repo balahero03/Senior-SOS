@@ -62,6 +62,13 @@ const getAdminStats = asyncHandler(async (req, res) => {
         activeConnectionsCount,
         totalDepartmentsCount,
         totalCompaniesCount,
+        // Denominator for the breakdown: only users who can belong to a
+        // department. totalUsers includes admins, who have no academic
+        // profile, so using it leaves the percentages short of 100.
+        enrolledTotal: departmentsWithCounts.reduce(
+          (sum, d) => sum + d._count.academicProfiles,
+          0,
+        ),
         departmentsBreakdown: departmentsWithCounts.map((d) => ({
           code: d.code,
           name: d.name,

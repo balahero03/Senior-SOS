@@ -2,6 +2,13 @@
 **/node_modules/
 npm-debug.log*
 *.log
-dist/
+
+# Build output.
 **/dist/
+**/build/
 .vite/
+
+# API transcript logs. These record request and response bodies verbatim,
+# including passwords and tokens, so they must never be committed.
+logs/
+*.log.txt

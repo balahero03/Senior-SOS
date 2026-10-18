@@ -1,8 +1,12 @@
 // frontend/src/features/community/api.js
 import api from '../../services/api';
 
-export const getPosts = (page = 1, tag) =>
-  api.get('/posts', { params: { page, ...(tag && { tag }) } }).then(r => r.data.data);
+// The feed loads in small slots and appends as the reader scrolls, so the
+// page size is passed explicitly rather than relying on the server default.
+export const getPosts = (page = 1, tag, limit) =>
+  api
+    .get('/posts', { params: { page, ...(limit && { limit }), ...(tag && { tag }) } })
+    .then(r => r.data.data);
 
 export const createPost = (data) =>
   api.post('/posts', data).then(r => r.data.data);

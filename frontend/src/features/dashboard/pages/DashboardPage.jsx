@@ -1,5 +1,5 @@
 // frontend/src/features/dashboard/pages/DashboardPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../../stores/authStore';
 import Navbar from '../../../components/layout/Navbar';
@@ -43,12 +43,22 @@ function LinkedInPostCard({ post, currentUserId, onReact, onDelete }) {
   const isOwner = post.authorId === currentUserId;
   const isAlumni = post.author?.role === 'ALUMNI';
 
+  // GET /api/posts hydrates authors as a flat object (company, designation,
+  // department, graduationYear). The nested shapes are kept as a fallback for
+  // any endpoint that returns a full Prisma user.
+  const authorCompany = post.author?.company || post.author?.alumniProfile?.company?.name;
+  const authorDesignation = post.author?.designation || post.author?.alumniProfile?.designation;
+  const authorDepartment = post.author?.department
+    || post.author?.academicProfile?.department?.code
+    || post.author?.academicProfile?.department?.name;
+  const authorGradYear = post.author?.graduationYear || post.author?.academicProfile?.graduationYear;
+
   const authorHeadline = isAlumni
-    ? post.author?.alumniProfile?.company?.name
-      ? `${post.author?.alumniProfile?.designation || 'Alumnus'} at ${post.author.alumniProfile.company.name}`
-      : 'Alumni Mentor'
-    : post.author?.academicProfile?.department?.name
-    ? `${post.author.academicProfile.department.name} • Class of ${post.author.academicProfile.graduationYear || '2027'}`
+    ? authorCompany
+      ? `${authorDesignation || 'Alumnus'} at ${authorCompany}`
+      : authorDesignation || 'Alumni Mentor'
+    : authorDepartment
+    ? `${authorDepartment}${authorGradYear ? ` • Class of ${authorGradYear}` : ''}`
     : 'Student';
 
   const loadComments = useCallback(async () => {
@@ -467,10 +477,20 @@ function LinkedInPostComposer({ user, onPostCreated }) {
 }
 
 // ─── Main Dashboard Page ───────────────────────────────────────────────────────
+// How many posts load per slot as the reader scrolls.
+const POSTS_PER_PAGE = 5;
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  // The observer is created once, so it cannot close over state.
+  const loadingRef = useRef(false);
+  const sentinelRef = useRef(null);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
   const [recommendedAlumni, setRecommendedAlumni] = useState([]);
   const [connectingId, setConnectingId] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL');
@@ -479,16 +499,43 @@ export default function DashboardPage() {
   const initials = displayName.charAt(0).toUpperCase();
   const isAlumni = user?.role === 'ALUMNI';
 
-  // Load feed posts
-  const loadPosts = useCallback(async () => {
-    setLoadingPosts(true);
+  // Load feed posts one slot at a time, appending as the reader scrolls.
+  const loadPosts = useCallback(async (pageNum = 1) => {
+    // Guard with a ref, not state: the observer callback runs before React
+    // re-renders and would otherwise request the same page twice.
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoadingPosts(pageNum === 1);
+    setLoadingMore(pageNum > 1);
     try {
-      const data = await getPosts(1);
-      setPosts(data.posts || []);
+      const data = await getPosts(pageNum, undefined, POSTS_PER_PAGE);
+      const batch = data.posts || [];
+
+      setPosts((prev) => {
+        if (pageNum === 1) return batch;
+        // A post created or deleted between fetches shifts the server-side
+        // offset, so the same _id can arrive in two batches.
+        const seen = new Set(prev.map((p) => p._id));
+        return [...prev, ...batch.filter((p) => !seen.has(p._id))];
+      });
+
+      const { page: current, totalPages } = data.pagination || {};
+      const more = totalPages != null && current != null
+        ? current < totalPages
+        : batch.length === POSTS_PER_PAGE;
+
+      pageRef.current = pageNum;
+      hasMoreRef.current = more;
+      setHasMore(more);
     } catch (err) {
       console.error('Failed to load posts:', err);
+      // Stop the observer retrying a failing request on every scroll tick.
+      hasMoreRef.current = false;
+      setHasMore(false);
     } finally {
+      loadingRef.current = false;
       setLoadingPosts(false);
+      setLoadingMore(false);
     }
   }, []);
 
@@ -503,9 +550,59 @@ export default function DashboardPage() {
   }, [isAlumni]);
 
   useEffect(() => {
-    loadPosts();
+    loadPosts(1);
     loadRecommendations();
   }, [loadPosts, loadRecommendations]);
+
+  // Filter posts based on active pill
+  const filteredPosts = posts.filter((p) => {
+    if (activeTab === 'ALL') return true;
+    if (activeTab === 'ALUMNI') return p.author?.role === 'ALUMNI';
+    if (activeTab === 'STUDENTS') return p.author?.role === 'STUDENT';
+    if (activeTab === 'OPPORTUNITIES') {
+      return (
+        p.tags?.some((t) => ['career', 'job', 'referral', 'internship'].includes(t.toLowerCase())) ||
+        p.content?.toLowerCase().includes('referral') ||
+        p.content?.toLowerCase().includes('hiring')
+      );
+    }
+    return true;
+  });
+
+  // Load the next slot as the sentinel below the last post comes into view.
+  // Created once and reading live values from refs: rebuilding the observer
+  // on every load leaves it armed but silent when the sentinel is already
+  // inside the margin, which stalls the feed.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        if (loadingRef.current || !hasMoreRef.current) return;
+        loadPosts(pageRef.current + 1);
+      },
+      { rootMargin: '600px 0px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadPosts]);
+
+  // A slot is often shorter than the viewport, and the active filter can hide
+  // most of a batch, so the sentinel may still be on screen after rendering.
+  // An observer only fires on a crossing, so top up explicitly.
+  useEffect(() => {
+    if (loadingPosts || loadingMore || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const { top } = sentinel.getBoundingClientRect();
+    if (top <= window.innerHeight + 600) {
+      loadPosts(pageRef.current + 1);
+    }
+  }, [posts, filteredPosts.length, loadingPosts, loadingMore, hasMore, loadPosts]);
 
   const handlePostCreated = (newPost) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -552,21 +649,6 @@ export default function DashboardPage() {
       setConnectingId(null);
     }
   };
-
-  // Filter posts based on active pill
-  const filteredPosts = posts.filter((p) => {
-    if (activeTab === 'ALL') return true;
-    if (activeTab === 'ALUMNI') return p.author?.role === 'ALUMNI';
-    if (activeTab === 'STUDENTS') return p.author?.role === 'STUDENT';
-    if (activeTab === 'OPPORTUNITIES') {
-      return (
-        p.tags?.some((t) => ['career', 'job', 'referral', 'internship'].includes(t.toLowerCase())) ||
-        p.content?.toLowerCase().includes('referral') ||
-        p.content?.toLowerCase().includes('hiring')
-      );
-    }
-    return true;
-  });
 
   return (
     <div className="min-h-screen bg-[#f4f2ee] flex flex-col font-sans">
@@ -710,7 +792,11 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            ) : filteredPosts.length === 0 ? (
+            ) : filteredPosts.length === 0 && !hasMore ? (
+              // Only a real empty state once everything has been fetched: an
+              // active filter can hide a whole slot while more pages remain,
+              // and showing this instead would unmount the sentinel and stop
+              // the scroll for good.
               <div className="feed-card p-10 text-center space-y-3">
                 <div className="w-12 h-12 rounded-full bg-blue-50 text-[#0a66c2] flex items-center justify-center text-xl mx-auto">
                   📝
@@ -731,6 +817,41 @@ export default function DashboardPage() {
                     onDelete={handleDelete}
                   />
                 ))}
+
+                {/* Scroll target: crossing this loads the next slot. */}
+                <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+
+                {hasMore ? (
+                  loadingMore ? (
+                    <div className="space-y-4" aria-live="polite">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="feed-card p-4 animate-pulse space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-200" />
+                            <div className="space-y-1.5 flex-1">
+                              <div className="h-3 bg-slate-200 rounded w-36" />
+                              <div className="h-2 bg-slate-100 rounded w-24" />
+                            </div>
+                          </div>
+                          <div className="h-3 bg-slate-200 rounded w-full" />
+                          <div className="h-3 bg-slate-100 rounded w-4/5" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Fallback for when the observer cannot fire.
+                    <button
+                      onClick={() => loadPosts(pageRef.current + 1)}
+                      className="w-full py-2.5 text-xs font-bold text-[#0a66c2] hover:bg-blue-50 rounded-lg border border-blue-200 bg-white transition-colors"
+                    >
+                      Load more updates
+                    </button>
+                  )
+                ) : (
+                  <p className="py-4 text-center text-xs text-slate-400">
+                    You&apos;re all caught up.
+                  </p>
+                )}
               </div>
             )}
           </section>

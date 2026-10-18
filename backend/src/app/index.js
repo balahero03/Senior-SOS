@@ -21,6 +21,7 @@ const morgan = require('morgan');
 
 const config = require('../config');
 const errorMiddleware = require('../middleware/error.middleware');
+const requestLogger = require('../middleware/requestLogger.middleware');
 const authRoutes = require('../modules/auth/routes/auth.routes');
 const postRoutes = require('../routes/postRoutes');
 const connectionRoutes = require('../routes/connectionRoutes');
@@ -68,6 +69,14 @@ if (config.isDevelopment) {
   app.use(morgan('combined'));
 }
 
+// Full request/response transcript to logs/api-<date>.txt. Registered after
+// the body and cookie parsers so it can read both, and before the routes so
+// it wraps every API response. Off unless API_TRANSCRIPT_LOG is enabled,
+// because it records bodies verbatim.
+if (config.transcriptLog.enabled) {
+  app.use(requestLogger);
+}
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 
 app.get('/health', (req, res) => {
@@ -79,9 +88,15 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/departments', userController.getDepartments);
-app.use('/api/companies', requireAuth, userController.getCompanies);
-app.use('/api/skills', requireAuth, userController.getSkills);
+// app.get, not app.use: app.use matches every method, so a POST or DELETE to
+// these paths would run the read handler and return 200 with the list.
+//
+// Departments stay public: the register and forgot-password forms need the
+// real department UUIDs before the user has a token, and registering with a
+// guessed code instead of a UUID fails validation.
+app.get('/api/departments', userController.getDepartments);
+app.get('/api/companies', requireAuth, userController.getCompanies);
+app.get('/api/skills', requireAuth, userController.getSkills);
 app.use('/api/posts', postRoutes);
 app.use('/api/connections', connectionRoutes);
 app.use('/api/mentorship', mentorshipRoutes);

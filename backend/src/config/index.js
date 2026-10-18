@@ -67,6 +67,15 @@ const config = {
     clientOrigin: optional('CLIENT_ORIGIN', 'http://localhost:5173'),
   },
 
+  transcriptLog: {
+    // Full request/response transcript to logs/api-<date>.txt.
+    // Records bodies verbatim, including passwords and tokens, so it is
+    // opt-in and refuses to run in production.
+    enabled:
+      optional('API_TRANSCRIPT_LOG', 'false') === 'true'
+      && optional('NODE_ENV', 'development') !== 'production',
+  },
+
   isProduction: optional('NODE_ENV', 'development') === 'production',
   isDevelopment: optional('NODE_ENV', 'development') === 'development',
 };
