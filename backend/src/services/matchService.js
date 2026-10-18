@@ -14,12 +14,13 @@ const graph = require('./graphService');
 // Weights. Shared skills and interests matter most, because they are what the
 // student actually wants to talk about; the network signal breaks ties.
 const WEIGHTS = {
-  skillOverlap: 34,      // skills in common
-  interestMatch: 28,     // their work matches the student's stated interests
-  mutualConnections: 12, // reachable through people you know
-  sameDepartment: 10,    // shared academic background
-  seniority: 8,          // enough experience to actually advise
-  recency: 5,            // graduated recently enough to remember the process
+  skillOverlap: 30,      // skills in common
+  interestMatch: 25,     // their work matches the student's stated interests
+  reachability: 14,      // how short the path through the network is
+  mutualConnections: 10, // reachable through people you know
+  sameDepartment: 9,     // shared academic background
+  seniority: 7,          // enough experience to actually advise
+  recency: 4,            // graduated recently enough to remember the process
   verified: 3,           // verified alumni are a safer bet
 };
 
@@ -48,7 +49,10 @@ function tokenise(text, { keepGeneric = false } = {}) {
  * Scores one alumnus for one student.
  * Returns the score out of 100 plus the reasons behind it.
  */
-function scoreAlumnus({ student, alumnus, mutualCount, currentYear, explicitInterest = false }) {
+function scoreAlumnus({
+  student, alumnus, mutualCount, currentYear, explicitInterest = false,
+  degrees = null, route = null,
+}) {
   const reasons = [];
   let score = 0;
 
@@ -139,6 +143,25 @@ function scoreAlumnus({ student, alumnus, mutualCount, currentYear, explicitInte
       weight: Math.round(WEIGHTS.mutualConnections * ratio),
       label: `${mutualCount} mutual connection${mutualCount === 1 ? '' : 's'}`,
       detail: mutualCount,
+    });
+  }
+
+  // ─── Reachability through the network ─────────────────────────────────────
+  // A warm introduction beats a cold request, so a shorter path scores
+  // higher. 1 degree means a direct connection of someone you know.
+  if (degrees !== null && degrees > 0) {
+    const ratio = degrees <= 2 ? 1 : degrees === 3 ? 0.55 : 0.25;
+    score += WEIGHTS.reachability * ratio;
+    const via = (route || []).slice(1, -1).map((n) => n.name);
+    reasons.push({
+      type: 'reachable',
+      weight: Math.round(WEIGHTS.reachability * ratio),
+      label: degrees === 1
+        ? 'Directly connected to someone you know'
+        : via.length
+          ? `${degrees} degrees away — via ${via.slice(0, 2).join(', ')}`
+          : `${degrees} degrees away in your network`,
+      detail: { degrees, via },
     });
   }
 
@@ -295,20 +318,41 @@ async function recommendAlumni(studentId, filters = {}) {
     return { profile: studentProfile, profileComplete, recommendations: [] };
   }
 
-  // ─── Mutual connection counts, in one graph query ─────────────────────────
-  let mutualCounts = {};
+  // ─── Reachability through the network ─────────────────────────────────────
+  // Ask the graph who the student can actually reach, and how. Candidates
+  // the graph can reach are ranked first; the rest still score on profile
+  // signals alone, so a sparse network degrades rather than empties.
+  // The graph stores company names and department codes, while the filters
+  // arrive as PostgreSQL ids, so resolve them before querying Cypher.
+  const [filterCompany, filterDepartment] = await Promise.all([
+    companyId
+      ? prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
+      : null,
+    departmentId
+      ? prisma.department.findUnique({ where: { id: departmentId }, select: { code: true } })
+      : null,
+  ]);
+
+  const reach = new Map();
   if (graph.isGraphEnabled()) {
     try {
-      // getMutualCounts is a single Cypher query over all candidates.
-      mutualCounts = await graph.getMutualCounts(
-        studentId,
-        candidates.slice(0, 100).map((c) => c.id),
-      );
+      const reachable = await graph.getReachableAlumni(studentId, {
+        maxHops: 3,
+        limit: 120,
+        company: filterCompany?.name || null,
+        department: filterDepartment?.code || null,
+      });
+      for (const r of reachable) {
+        reach.set(r.user.id, { degrees: r.degrees, route: r.route, mutualCount: r.mutualCount });
+      }
     } catch (err) {
-      // The graph is an enhancement here, not a requirement.
-      console.error('[match] mutual counts unavailable:', err.message);
+      // The graph is an enhancement, not a requirement.
+      console.error('[match] reachability unavailable:', err.message);
     }
   }
+
+  const mutualCounts = {};
+  for (const [id, r] of reach) mutualCounts[id] = r.mutualCount;
 
   // ─── Score ────────────────────────────────────────────────────────────────
   const scored = candidates.map((c) => {
@@ -326,18 +370,35 @@ async function recommendAlumni(studentId, filters = {}) {
       skills: c.userSkills.map((us) => us.skill.name),
     };
 
+    const r = reach.get(c.id);
     const { score, reasons } = scoreAlumnus({
       student: studentProfile,
       alumnus,
       mutualCount: mutualCounts[c.id] || 0,
       currentYear,
       explicitInterest: Boolean(interest),
+      degrees: r?.degrees ?? null,
+      route: r?.route ?? null,
     });
 
-    return { user: alumnus, score, reasons, mutualConnections: mutualCounts[c.id] || 0 };
+    return {
+      user: alumnus,
+      score,
+      reasons,
+      mutualConnections: mutualCounts[c.id] || 0,
+      degrees: r?.degrees ?? null,
+      route: r?.route ?? null,
+      reachable: Boolean(r),
+    };
   });
 
-  scored.sort((a, b) => b.score - a.score || a.user.name.localeCompare(b.user.name));
+  // Reachable people first: a warm introduction is worth more than a
+  // marginally better profile match with no route to them.
+  scored.sort((a, b) => (
+    Number(b.reachable) - Number(a.reachable)
+    || b.score - a.score
+    || a.user.name.localeCompare(b.user.name)
+  ));
 
   // When the student searched for something specific, drop anyone who does
   // not match it on skills or role. Returning "18 mutual connections" as the

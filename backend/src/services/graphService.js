@@ -253,6 +253,51 @@ async function getNetworkGraph(userId, { depth = 2, limit = 120 } = {}) {
 }
 
 /**
+ * Alumni the student can actually reach, with the route to each.
+ *
+ * This is the graph-first answer to "who should I talk to": rather than
+ * scoring a list and looking up mutual counts afterwards, it starts from the
+ * student's own network and walks outwards, so every candidate comes with the
+ * distance and the people in between.
+ *
+ * Filters are applied inside the traversal so the database does the work.
+ */
+async function getReachableAlumni(userId, {
+  maxHops = 3,
+  limit = 60,
+  company = null,
+  department = null,
+  skill = null,
+} = {}) {
+  const hops = Math.max(1, Math.min(4, Math.trunc(Number(maxHops) || 3)));
+
+  const rows = await runQuery(
+    `MATCH (me:User { id: $userId })
+     MATCH (target:User)
+     WHERE target.id <> $userId
+       AND target.role = 'ALUMNI'
+       AND NOT (me)-[:CONNECTED_TO]-(target)
+       AND ($company IS NULL OR toLower(coalesce(target.company, '')) CONTAINS toLower($company))
+       AND ($department IS NULL OR target.department = $department)
+     MATCH p = shortestPath((me)-[:CONNECTED_TO*1..${hops}]-(target))
+     WITH target, length(p) AS degrees, [n IN nodes(p) | n { .id, .name }] AS route
+     // Shared connections are what make an introduction possible, so count
+     // them alongside the route.
+     OPTIONAL MATCH (me2:User { id: $userId })-[:CONNECTED_TO]-(mutual:User)-[:CONNECTED_TO]-(target)
+     WITH target, degrees, route, count(DISTINCT mutual) AS mutualCount
+     RETURN target { .id, .name, .role, .department, .graduationYear, .company, .designation } AS user,
+            degrees, route, mutualCount
+     ORDER BY degrees ASC, mutualCount DESC, user.name
+     LIMIT toInteger($limit)`,
+    { userId, limit, company, department },
+  );
+
+  // skill is filtered in the service layer: skills live in PostgreSQL, not
+  // on the graph node, so filtering here would need them mirrored too.
+  return rows;
+}
+
+/**
  * The campus-wide graph, independent of any one viewer.
  *
  * Takes the best-connected people first so the sample is the structural core
@@ -363,6 +408,7 @@ async function getGraphStats() {
 
 module.exports = {
   isGraphEnabled,
+  getReachableAlumni,
   getCampusGraph,
   getPathBetween,
   getTopConnectors,
