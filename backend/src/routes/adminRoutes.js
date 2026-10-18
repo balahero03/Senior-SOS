@@ -7,6 +7,7 @@
 const express = require('express');
 const { requireAuth, requireAdmin } = require('../middleware/auth.middleware');
 const adminController = require('../controllers/adminController');
+const logsController = require('../controllers/logsController');
 
 const router = express.Router();
 
@@ -25,6 +26,12 @@ router.patch('/users/:id/status', adminController.updateUserStatus);
 
 // Audit Logs
 router.get('/audit-logs', adminController.getAuditLogs);
+
+// API transcript logs. Ordered before /:id style routes so the literal
+// segments win; all three are admin-only like the rest of this router.
+router.get('/logs/meta', logsController.getLogsMeta);
+router.get('/logs/download', logsController.downloadLog);
+router.get('/logs', logsController.getLogs);
 
 // Master Data Management
 router.post('/departments', adminController.createDepartment);

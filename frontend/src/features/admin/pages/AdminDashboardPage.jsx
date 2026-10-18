@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
+import ApiLogsPanel from '../components/ApiLogsPanel';
 import PageHeading from '../../../components/ui/PageHeading';
 import useAuthStore from '../../../stores/authStore';
 import {
@@ -25,7 +26,7 @@ export default function AdminDashboardPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'masterData' | 'audit'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'masterData' | 'audit' | 'apiLogs'
   const [stats, setStats] = useState({
     totalUsers: 0,
     studentsCount: 0,
@@ -365,6 +366,16 @@ export default function AdminDashboardPage() {
             }`}
           >
             📜 Security Audit Trail
+          </button>
+          <button
+            onClick={() => setActiveTab('apiLogs')}
+            className={`pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 ${
+              activeTab === 'apiLogs'
+                ? 'text-[#0a66c2] border-b-2 border-[#0a66c2]'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🧾 API Transcript
           </button>
         </div>
 
@@ -1227,6 +1238,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+        {activeTab === 'apiLogs' && <ApiLogsPanel />}
+
       </main>
     </div>
   );

@@ -12,6 +12,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:seed:content": "node prisma/seed-content.js",
+    "logs": "node scripts/logs.js",
     "test": "node scripts/testSuite.js",
     "test:e2e": "node scripts/testSuite.js"
   },

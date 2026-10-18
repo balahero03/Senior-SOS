@@ -21,6 +21,7 @@ const morgan = require('morgan');
 
 const config = require('../config');
 const errorMiddleware = require('../middleware/error.middleware');
+const requestLogger = require('../middleware/requestLogger.middleware');
 const authRoutes = require('../modules/auth/routes/auth.routes');
 const postRoutes = require('../routes/postRoutes');
 const connectionRoutes = require('../routes/connectionRoutes');
@@ -66,6 +67,14 @@ if (config.isDevelopment) {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined'));
+}
+
+// Full request/response transcript to logs/api-<date>.txt. Registered after
+// the body and cookie parsers so it can read both, and before the routes so
+// it wraps every API response. Off unless API_TRANSCRIPT_LOG is enabled,
+// because it records bodies verbatim.
+if (config.transcriptLog.enabled) {
+  app.use(requestLogger);
 }
 
 // ─── Health check ─────────────────────────────────────────────────────────────
