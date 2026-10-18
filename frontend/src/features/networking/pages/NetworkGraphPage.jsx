@@ -9,12 +9,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
-import useAuthStore from '../../../stores/authStore';
 import {
   getGraphStatus,
-  getNetworkGraph,
-  getConnectionPath,
-  getReachableAtCompany,
+  getCampusGraph,
+  getPathBetween,
+  searchGraphUsers,
+  getTopConnectors,
 } from '../graphApi';
 
 const ROLE_COLOR = {
@@ -98,25 +98,32 @@ function simulate(nodes, edges, width, height, iterations = 260) {
 }
 
 export default function NetworkGraphPage() {
-  const { user } = useAuthStore();
   const canvasRef = useRef(null);
   const nodesRef = useRef([]);
   const edgesRef = useRef([]);
 
   const [status, setStatus] = useState(null);
-  const [depth, setDepth] = useState(2);
-  const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
+  const [graphData, setGraphData] = useState({ nodes: [], edges: [], degrees: {} });
   const [selected, setSelected] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Query panel
-  const [pathTargetId, setPathTargetId] = useState('');
+  // Filters over the campus network
+  const [limit, setLimit] = useState(120);
+  const [roleFilter, setRoleFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+
+  // Path tracing: an admin picks both endpoints, since they are not in the
+  // graph themselves.
+  const [pathFrom, setPathFrom] = useState(null);
   const [pathResult, setPathResult] = useState(null);
-  const [companyQuery, setCompanyQuery] = useState('');
-  const [companyResult, setCompanyResult] = useState(null);
   const [queryBusy, setQueryBusy] = useState(false);
+
+  // People search, to locate someone in a large graph
+  const [personQuery, setPersonQuery] = useState('');
+  const [personResults, setPersonResults] = useState([]);
+  const [topConnectors, setTopConnectors] = useState([]);
 
   useEffect(() => {
     getGraphStatus().then(setStatus).catch(() => setStatus({ enabled: false }));
@@ -126,20 +133,40 @@ export default function NetworkGraphPage() {
     setIsLoading(true);
     setError('');
     try {
-      const data = await getNetworkGraph({ depth, limit: 140 });
-      setGraphData({ nodes: data.nodes || [], edges: data.edges || [] });
+      const params = { limit };
+      if (roleFilter) params.role = roleFilter;
+      if (companyFilter.trim()) params.company = companyFilter.trim();
+      const data = await getCampusGraph(params);
+      setGraphData({
+        nodes: data.nodes || [],
+        edges: data.edges || [],
+        degrees: data.degrees || {},
+      });
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Could not load the network graph.');
-      setGraphData({ nodes: [], edges: [] });
+      setError(err.response?.data?.error?.message || 'Could not load the campus graph.');
+      setGraphData({ nodes: [], edges: [], degrees: {} });
     } finally {
       setIsLoading(false);
     }
-  }, [depth]);
+  }, [limit, roleFilter, companyFilter]);
 
   useEffect(() => {
     if (status?.enabled) loadGraph();
     else if (status) setIsLoading(false);
   }, [status, loadGraph]);
+
+  useEffect(() => {
+    if (status?.enabled) getTopConnectors(8).then(setTopConnectors).catch(() => {});
+  }, [status]);
+
+  // Debounced people search.
+  useEffect(() => {
+    if (personQuery.trim().length < 2) { setPersonResults([]); return undefined; }
+    const timer = setTimeout(() => {
+      searchGraphUsers(personQuery.trim(), 8).then(setPersonResults).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [personQuery]);
 
   // Lay out and draw whenever the data changes.
   useEffect(() => {
@@ -155,13 +182,15 @@ export default function NetworkGraphPage() {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const nodes = graphData.nodes.map((n) => ({ ...n, isRoot: n.id === user?.id }));
+    // There is no single root: an admin is not part of the campus graph, so
+    // the highlighted node is whichever person they are tracing from.
+    const nodes = graphData.nodes.map((n) => ({ ...n, isRoot: n.id === pathFrom?.id }));
     simulate(nodes, graphData.edges, width, height);
     nodesRef.current = nodes;
     edgesRef.current = graphData.edges;
 
     draw(ctx, width, height, nodes, graphData.edges, null, null);
-  }, [graphData, user?.id]);
+  }, [graphData, pathFrom?.id]);
 
   // Redraw on hover/selection without re-running the simulation.
   useEffect(() => {
@@ -242,12 +271,13 @@ export default function NetworkGraphPage() {
     return best;
   }
 
-  const runPath = async (targetId) => {
-    if (!targetId) return;
+  /** Traces from the pinned person to the one just clicked. */
+  const runPath = async (toId) => {
+    if (!pathFrom || !toId || pathFrom.id === toId) return;
     setQueryBusy(true);
     setPathResult(null);
     try {
-      setPathResult(await getConnectionPath(targetId));
+      setPathResult(await getPathBetween(pathFrom.id, toId));
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Path query failed.');
     } finally {
@@ -255,18 +285,13 @@ export default function NetworkGraphPage() {
     }
   };
 
-  const runCompany = async (e) => {
-    e.preventDefault();
-    if (!companyQuery.trim()) return;
-    setQueryBusy(true);
-    setCompanyResult(null);
-    try {
-      setCompanyResult(await getReachableAtCompany(companyQuery.trim(), { limit: 15 }));
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Company query failed.');
-    } finally {
-      setQueryBusy(false);
-    }
+  /** Pins someone as the start of a path trace and centres the view on them. */
+  const pinAsOrigin = (person) => {
+    setPathFrom(person);
+    setPathResult(null);
+    setSelected(person);
+    setPersonQuery('');
+    setPersonResults([]);
   };
 
   // ─── Graph unavailable ────────────────────────────────────────────────────
@@ -303,23 +328,33 @@ export default function NetworkGraphPage() {
         <div className="bg-gradient-to-r from-slate-900 to-[#004182] text-white rounded-2xl p-5 shadow-sm mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/10 border border-white/20">
-              Graph
+              Campus graph
             </span>
-            <h1 className="text-lg font-bold mt-1">Your Campus Network</h1>
+            <h1 className="text-lg font-bold mt-1">Campus Network Overview</h1>
             <p className="text-xs text-blue-100/80 max-w-2xl mt-0.5">
-              Everyone within {depth} {depth === 1 ? 'hop' : 'hops'} of you. Click a person to see how you are connected.
+              The {graphData.nodes.length} best-connected people on campus and every
+              connection between them. Click anyone to inspect them, or pin two
+              people to trace the route between them.
             </p>
           </div>
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <label className="text-xs font-semibold text-blue-100">Depth</label>
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
             <select
-              value={depth}
-              onChange={(e) => setDepth(Number(e.target.value))}
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
               className="bg-white/10 border border-white/20 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none"
             >
-              <option className="text-slate-900" value={1}>1 — direct</option>
-              <option className="text-slate-900" value={2}>2 — friends of friends</option>
-              <option className="text-slate-900" value={3}>3 — extended</option>
+              <option className="text-slate-900" value="">Everyone</option>
+              <option className="text-slate-900" value="ALUMNI">Alumni only</option>
+              <option className="text-slate-900" value="STUDENT">Students only</option>
+            </select>
+            <select
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              className="bg-white/10 border border-white/20 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none"
+            >
+              <option className="text-slate-900" value={60}>Top 60</option>
+              <option className="text-slate-900" value={120}>Top 120</option>
+              <option className="text-slate-900" value={200}>Top 200</option>
             </select>
             <button onClick={loadGraph} className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-xs font-semibold hover:bg-white/20 transition-colors">
               ↻ Rebuild
@@ -353,9 +388,11 @@ export default function NetworkGraphPage() {
                   </div>
                 ) : graphData.nodes.length === 0 ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-                    <p className="font-bold text-slate-700 text-sm">No connections yet</p>
+                    <p className="font-bold text-slate-700 text-sm">No connections in the graph</p>
                     <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                      Connect with people from the Discover page and your network will appear here.
+                      Nothing has been mirrored into Neo4j yet. Run{' '}
+                      <code className="px-1 py-0.5 bg-slate-100 rounded">npm run graph:sync</code>{' '}
+                      in the backend, then rebuild.
                     </p>
                   </div>
                 ) : (
@@ -367,7 +404,8 @@ export default function NetworkGraphPage() {
                     onClick={(e) => {
                       const n = nodeAt(e);
                       setSelected(n);
-                      if (n && n.id !== user?.id) { setPathTargetId(n.id); runPath(n.id); }
+                      // With an origin pinned, a click traces the route to it.
+                      if (n && pathFrom && n.id !== pathFrom.id) runPath(n.id);
                     }}
                   />
                 )}
@@ -377,6 +415,87 @@ export default function NetworkGraphPage() {
 
           {/* Side panel */}
           <aside className="space-y-4">
+            {/* Find a person */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Find a person</h3>
+              <input
+                type="text"
+                value={personQuery}
+                onChange={(e) => setPersonQuery(e.target.value)}
+                placeholder="Search by name…"
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+              {personResults.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {personResults.map((r) => (
+                    <button
+                      key={r.user.id}
+                      onClick={() => pinAsOrigin(r.user)}
+                      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <span className="block font-semibold text-slate-800 text-xs truncate">{r.user.name}</span>
+                      <span className="block text-[10px] text-slate-400 truncate">
+                        {r.user.role} · {r.degree} connections
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Path tracing between any two people */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Trace a route</h3>
+
+              {!pathFrom ? (
+                <p className="text-xs text-slate-400">
+                  Search for someone above, or click a person in the graph and pin
+                  them as the starting point.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">From</span>
+                      <span className="block font-semibold text-slate-800 text-xs truncate">{pathFrom.name}</span>
+                    </div>
+                    <button
+                      onClick={() => { setPathFrom(null); setPathResult(null); }}
+                      className="text-[11px] font-semibold text-slate-400 hover:text-rose-600 shrink-0"
+                    >
+                      clear
+                    </button>
+                  </div>
+
+                  {queryBusy ? (
+                    <p className="text-xs text-slate-400">Finding the shortest route…</p>
+                  ) : !pathResult ? (
+                    <p className="text-xs text-slate-400">Now click anyone in the graph to trace the route.</p>
+                  ) : !pathResult.found ? (
+                    <p className="text-xs text-slate-500">No route within 6 degrees.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-[#0a66c2]">
+                        {pathResult.degrees} {pathResult.degrees === 1 ? 'degree' : 'degrees'} apart
+                      </p>
+                      <ol className="space-y-1.5">
+                        {pathResult.path.map((p, i) => (
+                          <li key={p.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              {i + 1}
+                            </span>
+                            <Link to={`/profile/${p.id}`} className="font-semibold text-slate-800 hover:text-[#0a66c2] truncate">
+                              {p.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* Selected person */}
             <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Selected</h3>
@@ -392,82 +511,50 @@ export default function NetworkGraphPage() {
                       ? `${selected.designation || 'Alumnus'} at ${selected.company}`
                       : `${selected.department || '—'}${selected.graduationYear ? ` • Class of ${selected.graduationYear}` : ''}`}
                   </p>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                    selected.role === 'ALUMNI'
-                      ? 'bg-blue-50 text-blue-700 border-blue-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}>
-                    {selected.role}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Shortest path */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Connection path</h3>
-              {queryBusy && !pathResult ? (
-                <p className="text-xs text-slate-400">Finding the shortest route…</p>
-              ) : !pathResult ? (
-                <p className="text-xs text-slate-400">Select someone to see how you reach them.</p>
-              ) : !pathResult.found ? (
-                <p className="text-xs text-slate-500">No path found within 6 degrees.</p>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-[#0a66c2]">
-                    {pathResult.degrees} {pathResult.degrees === 1 ? 'degree' : 'degrees'} of connection
-                  </p>
-                  <ol className="space-y-1.5">
-                    {pathResult.path.map((p, i) => (
-                      <li key={p.id} className="flex items-center gap-2 text-xs">
-                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[10px] font-bold shrink-0">
-                          {i + 1}
-                        </span>
-                        <Link to={`/profile/${p.id}`} className="font-semibold text-slate-800 hover:text-[#0a66c2] truncate">
-                          {p.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-
-            {/* Who do we know at… */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Who do we know at…</h3>
-              <form onSubmit={runCompany} className="flex gap-2">
-                <input
-                  type="text"
-                  value={companyQuery}
-                  onChange={(e) => setCompanyQuery(e.target.value)}
-                  placeholder="e.g. Amazon"
-                  className="flex-1 min-w-0 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-                <button type="submit" disabled={queryBusy} className="px-3 py-1.5 rounded-xl bg-[#0a66c2] text-white text-xs font-bold disabled:opacity-50 hover:bg-[#004182] transition-colors">
-                  Find
-                </button>
-              </form>
-
-              {companyResult && (
-                <div className="mt-3 space-y-2">
-                  {companyResult.count === 0 ? (
-                    <p className="text-xs text-slate-500">
-                      Nobody at {companyResult.company} is reachable within 4 degrees.
-                    </p>
-                  ) : (
-                    companyResult.people.map((p) => (
-                      <div key={p.user.id} className="pb-2 border-b border-slate-100 last:border-0">
-                        <Link to={`/profile/${p.user.id}`} className="font-semibold text-slate-800 text-xs hover:text-[#0a66c2]">
-                          {p.user.name}
-                        </Link>
-                        <p className="text-[11px] text-slate-500">
-                          {p.user.designation || 'Alumnus'} · {p.degrees} {p.degrees === 1 ? 'degree' : 'degrees'}
-                        </p>
-                        <p className="text-[10px] text-slate-400 truncate">via {p.via.join(' → ')}</p>
-                      </div>
-                    ))
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      selected.role === 'ALUMNI'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
+                      {selected.role}
+                    </span>
+                    {graphData.degrees[selected.id] != null && (
+                      <span className="text-[11px] text-slate-500">
+                        {graphData.degrees[selected.id]} connections
+                      </span>
+                    )}
+                  </div>
+                  {(!pathFrom || pathFrom.id !== selected.id) && (
+                    <button
+                      onClick={() => pinAsOrigin(selected)}
+                      className="w-full mt-1 px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 text-[11px] font-bold hover:bg-slate-50 transition-colors"
+                    >
+                      Trace routes from here
+                    </button>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Most connected */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Most connected</h3>
+              {topConnectors.length === 0 ? (
+                <p className="text-xs text-slate-400">—</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {topConnectors.map((c, i) => (
+                    <button
+                      key={c.user.id}
+                      onClick={() => pinAsOrigin(c.user)}
+                      className="w-full flex items-center gap-2 text-left px-1.5 py-1 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <span className="w-4 text-[10px] font-bold text-slate-400">{i + 1}</span>
+                      <span className="flex-1 min-w-0 font-semibold text-slate-800 text-xs truncate">{c.user.name}</span>
+                      <span className="text-[11px] text-slate-500 shrink-0">{c.degree}</span>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

@@ -23,6 +23,13 @@ router.get('/network', graphController.getNetwork);
 // Batch mutual counts for list and card views.
 router.post('/mutual-counts', graphController.getMutualCounts);
 
+// Campus-wide views for administrators. The personal /network view renders
+// the viewer's own neighbourhood, which is empty for an admin account.
+router.get('/campus/search', requireAdmin, graphController.searchGraphUsers);
+router.get('/campus/path', requireAdmin, graphController.getCampusPath);
+router.get('/campus/top', requireAdmin, graphController.getTopConnectors);
+router.get('/campus', requireAdmin, graphController.getCampus);
+
 // Reachability by employer: "who do we know at Amazon?"
 router.get('/company/:company', graphController.getReachableAtCompany);
 

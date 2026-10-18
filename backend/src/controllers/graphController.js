@@ -200,8 +200,79 @@ const resync = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/graph/campus
+ * Administrators only: the whole campus network, independent of any viewer.
+ * The personal /network view is empty for an admin, who has no connections.
+ */
+const getCampus = asyncHandler(async (req, res) => {
+  assertGraph();
+
+  const limit = Math.min(400, Math.max(10, parseInt(req.query.limit, 10) || 150));
+  const role = ['STUDENT', 'ALUMNI'].includes(String(req.query.role).toUpperCase())
+    ? String(req.query.role).toUpperCase()
+    : null;
+  const department = req.query.department?.trim() || null;
+  const company = req.query.company?.trim() || null;
+
+  const { nodes, edges, degrees } = await graph.getCampusGraph({
+    limit, role, department, company,
+  });
+
+  res.json({
+    success: true,
+    data: { nodes, edges, degrees, counts: { nodes: nodes.length, edges: edges.length } },
+  });
+});
+
+/**
+ * GET /api/graph/campus/path?from=&to=
+ * Administrators only: the route between any two people.
+ */
+const getCampusPath = asyncHandler(async (req, res) => {
+  assertGraph();
+
+  const { from, to } = req.query;
+  if (!from || !to) {
+    throw new AppError('Both from and to user ids are required', 400, 'VALIDATION_ERROR');
+  }
+
+  const maxHops = Math.min(10, Math.max(1, parseInt(req.query.maxHops, 10) || 6));
+  res.json({ success: true, data: await graph.getPathBetween(from, to, maxHops) });
+});
+
+/**
+ * GET /api/graph/campus/search?q=
+ * Administrators only: find a person to centre the graph on.
+ */
+const searchGraphUsers = asyncHandler(async (req, res) => {
+  assertGraph();
+
+  const q = req.query.q?.trim();
+  if (!q || q.length < 2) {
+    return res.json({ success: true, data: { users: [] } });
+  }
+
+  const limit = Math.min(25, Math.max(1, parseInt(req.query.limit, 10) || 10));
+  res.json({ success: true, data: { users: await graph.searchUsers(q, limit) } });
+});
+
+/**
+ * GET /api/graph/campus/top
+ * Administrators only: the best-connected people on campus.
+ */
+const getTopConnectors = asyncHandler(async (req, res) => {
+  assertGraph();
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+  res.json({ success: true, data: { connectors: await graph.getTopConnectors(limit) } });
+});
+
 module.exports = {
   getStatus,
+  getCampus,
+  getCampusPath,
+  searchGraphUsers,
+  getTopConnectors,
   getMutual,
   getPath,
   getSuggestions,

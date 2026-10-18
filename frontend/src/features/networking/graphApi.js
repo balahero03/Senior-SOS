@@ -34,3 +34,26 @@ export const getReachableAtCompany = (company, params = {}) =>
 /** Mutual counts for many users at once, for card lists. */
 export const getMutualCounts = (userIds) =>
   api.post('/graph/mutual-counts', { userIds }).then((r) => r.data.data);
+
+// ─── Administrator views ─────────────────────────────────────────────────────
+// The personal /network view renders the viewer's own neighbourhood, which is
+// empty for an admin account. These return the campus network instead.
+
+/** The whole campus graph, optionally filtered. */
+export const getCampusGraph = (params = {}) =>
+  api.get('/graph/campus', { params }).then((r) => r.data.data);
+
+/** Shortest path between any two people. */
+export const getPathBetween = (from, to, maxHops) =>
+  api.get('/graph/campus/path', { params: { from, to, ...(maxHops && { maxHops }) } })
+    .then((r) => r.data.data);
+
+/** Find a person to centre the graph on. */
+export const searchGraphUsers = (q, limit) =>
+  api.get('/graph/campus/search', { params: { q, ...(limit && { limit }) } })
+    .then((r) => r.data.data.users);
+
+/** The best-connected people on campus. */
+export const getTopConnectors = (limit) =>
+  api.get('/graph/campus/top', { params: limit ? { limit } : {} })
+    .then((r) => r.data.data.connectors);

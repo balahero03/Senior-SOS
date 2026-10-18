@@ -252,6 +252,89 @@ async function getNetworkGraph(userId, { depth = 2, limit = 120 } = {}) {
   return { nodes: rows[0].nodes || [], edges: rows[0].edges || [] };
 }
 
+/**
+ * The campus-wide graph, independent of any one viewer.
+ *
+ * Takes the best-connected people first so the sample is the structural core
+ * of the network rather than an arbitrary slice, then returns every edge
+ * between them. This is what an administrator needs: the shape of the whole
+ * network, not one person's neighbourhood.
+ */
+async function getCampusGraph({ limit = 150, role = null, department = null, company = null } = {}) {
+  const rows = await runQuery(
+    `MATCH (u:User)
+     WHERE ($role IS NULL OR u.role = $role)
+       AND ($department IS NULL OR u.department = $department)
+       AND ($company IS NULL OR toLower(u.company) CONTAINS toLower($company))
+     OPTIONAL MATCH (u)-[:CONNECTED_TO]->(other:User)
+     WITH u, count(other) AS degree
+     ORDER BY degree DESC
+     LIMIT toInteger($limit)
+     WITH collect(u) AS people, collect({ id: u.id, degree: degree }) AS degrees
+     UNWIND people AS a
+     UNWIND people AS b
+     WITH people, degrees, a, b
+     WHERE a.id < b.id AND (a)-[:CONNECTED_TO]-(b)
+     WITH people, degrees, collect({ source: a.id, target: b.id }) AS edges
+     RETURN [p IN people | p { .id, .name, .role, .department, .graduationYear, .company, .designation }] AS nodes,
+            edges, degrees`,
+    { limit, role, department, company },
+  );
+
+  if (!rows.length) return { nodes: [], edges: [], degrees: {} };
+
+  const degrees = {};
+  for (const d of rows[0].degrees || []) degrees[d.id] = d.degree;
+  return { nodes: rows[0].nodes || [], edges: rows[0].edges || [], degrees };
+}
+
+/**
+ * Shortest path between any two people, for administrators inspecting the
+ * network. Same query as getShortestPath but without assuming the requester
+ * is one of the endpoints.
+ */
+async function getPathBetween(fromId, toId, maxHops = 6) {
+  if (fromId === toId) return { found: true, degrees: 0, path: [] };
+  const hops = Math.max(1, Math.min(10, Math.trunc(Number(maxHops) || 6)));
+
+  const rows = await runQuery(
+    `MATCH (a:User { id: $fromId }), (b:User { id: $toId })
+     MATCH p = shortestPath((a)-[:CONNECTED_TO*1..${hops}]-(b))
+     RETURN [n IN nodes(p) | n { .id, .name, .role, .department, .company, .designation }] AS nodes,
+            length(p) AS degrees`,
+    { fromId, toId },
+  );
+
+  if (!rows.length) return { found: false, degrees: null, path: [] };
+  return { found: true, degrees: rows[0].degrees, path: rows[0].nodes };
+}
+
+/** The most connected people on campus, for an admin overview. */
+async function getTopConnectors(limit = 10) {
+  return runQuery(
+    `MATCH (u:User)-[:CONNECTED_TO]->(other:User)
+     WITH u, count(DISTINCT other) AS degree
+     ORDER BY degree DESC
+     LIMIT toInteger($limit)
+     RETURN u { .id, .name, .role, .department, .company, .designation } AS user, degree`,
+    { limit },
+  );
+}
+
+/** Find people by name, so an admin can centre the graph on someone. */
+async function searchUsers(query, limit = 10) {
+  return runQuery(
+    `MATCH (u:User)
+     WHERE toLower(u.name) CONTAINS toLower($query)
+     OPTIONAL MATCH (u)-[:CONNECTED_TO]->(other:User)
+     WITH u, count(other) AS degree
+     RETURN u { .id, .name, .role, .department, .graduationYear, .company, .designation } AS user, degree
+     ORDER BY degree DESC, user.name
+     LIMIT toInteger($limit)`,
+    { query, limit },
+  );
+}
+
 /** Degree (connection count) for one user, straight from the graph. */
 async function getDegree(userId) {
   const rows = await runQuery(
@@ -280,6 +363,10 @@ async function getGraphStats() {
 
 module.exports = {
   isGraphEnabled,
+  getCampusGraph,
+  getPathBetween,
+  getTopConnectors,
+  searchUsers,
   ensureSchema,
   upsertUser,
   upsertUsers,
