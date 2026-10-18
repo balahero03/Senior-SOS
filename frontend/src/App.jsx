@@ -9,6 +9,7 @@ import DashboardPage from './features/dashboard/pages/DashboardPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
+import BestFitPage from './features/discover/pages/BestFitPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
 import NetworkGraphPage from './features/networking/pages/NetworkGraphPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
@@ -46,6 +47,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DiscoverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/best-fit"
+          element={
+            <ProtectedRoute>
+              <BestFitPage />
             </ProtectedRoute>
           }
         />

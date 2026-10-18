@@ -898,6 +898,26 @@ export default function DashboardPage() {
             </div>
 
             {/* People You May Know / Suggested Connections */}
+            {/* Students get a route into scored matching, not just a list of
+                names they have no basis to choose between. */}
+            {!isAlumni && user?.role === 'STUDENT' && (
+              <Link
+                to="/best-fit"
+                className="feed-card p-4 block hover:shadow-md transition-shadow group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎯</span>
+                  <h3 className="font-bold text-slate-900 text-sm group-hover:text-[#0a66c2] transition-colors">
+                    Find your best matches
+                  </h3>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  Alumni ranked against your skills, interests and network — with
+                  the reasons behind every suggestion.
+                </p>
+              </Link>
+            )}
+
             {recommendedAlumni.length > 0 && (
               <div className="feed-card p-4">
                 <div className="flex items-center justify-between mb-3">
