@@ -9,7 +9,9 @@ import DashboardPage from './features/dashboard/pages/DashboardPage';
 import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
+import BestFitPage from './features/discover/pages/BestFitPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
+import NetworkGraphPage from './features/networking/pages/NetworkGraphPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
@@ -49,10 +51,28 @@ export default function App() {
           }
         />
         <Route
+          path="/best-fit"
+          element={
+            <ProtectedRoute>
+              <BestFitPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/network"
           element={
             <ProtectedRoute>
               <NetworkPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/network/graph"
+          element={
+            // Administrators only. explainDenial so a student who follows an
+            // old link is told why, rather than being bounced silently.
+            <ProtectedRoute requiredRole="ADMIN" explainDenial>
+              <NetworkGraphPage />
             </ProtectedRoute>
           }
         />

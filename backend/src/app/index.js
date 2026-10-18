@@ -32,6 +32,8 @@ const userRoutes = require('../routes/userRoutes');
 const notificationRoutes = require('../routes/notificationRoutes');
 const adminRoutes = require('../routes/adminRoutes');
 const settingsRoutes = require('../routes/settingsRoutes');
+const graphRoutes = require('../routes/graphRoutes');
+const matchRoutes = require('../routes/matchRoutes');
 const userController = require('../controllers/userController');
 const { requireAuth } = require('../middleware/auth.middleware');
 
@@ -103,6 +105,8 @@ app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/graph', graphRoutes);
+app.use('/api/match', matchRoutes);
 app.use('/api', communityRoutes);      // /api/posts fallback, other community routes
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 

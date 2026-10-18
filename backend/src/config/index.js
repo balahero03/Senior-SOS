@@ -67,6 +67,22 @@ const config = {
     clientOrigin: optional('CLIENT_ORIGIN', 'http://localhost:5173'),
   },
 
+  neo4j: {
+    // Neo4j Aura connection. Empty uri disables all graph features, so the
+    // app still runs without it.
+    uri: optional('NEO4J_URI', ''),
+    // No 'neo4j' default for user/database: on AuraDB Free both are the
+    // instance id, and defaulting to 'neo4j' turns a misconfiguration into
+    // an auth error or "database does not exist" that reads like a bad
+    // password. Empty values fail the enabled check instead.
+    user: optional('NEO4J_USER', ''),
+    password: optional('NEO4J_PASSWORD', ''),
+    database: optional('NEO4J_DATABASE', ''),
+    get enabled() {
+      return Boolean(this.uri && this.user && this.password && this.database);
+    },
+  },
+
   transcriptLog: {
     // Full request/response transcript to logs/api-<date>.txt.
     // Records bodies verbatim, including passwords and tokens, so it is

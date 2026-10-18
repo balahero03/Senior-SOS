@@ -4,7 +4,7 @@
 // Per FOLDER_STRUCTURE.md §frontend/src/routes/:
 //   "Route definitions and route guards: public/authenticated/admin route trees."
 
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Link } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 
 function LoadingSpinner() {
@@ -29,10 +29,45 @@ function LoadingSpinner() {
 }
 
 /**
- * Wraps a route that requires authentication.
- * @param {{ children: React.ReactNode, requiredRole?: string }} props
+ * Shown instead of redirecting when a route sets `explainDenial`.
+ * Used where a silent bounce would look like a broken link.
  */
-export default function ProtectedRoute({ children, requiredRole, allowAdmin = false }) {
+function NotAuthorised() {
+  return (
+    <div className="min-h-screen bg-[#f4f2ee] flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center shadow-sm max-w-md">
+        <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mb-4">
+          🔒
+        </div>
+        <h2 className="text-lg font-bold text-slate-800">Administrator access only</h2>
+        <p className="text-sm text-slate-500 mt-2">
+          This section is restricted to campus administrators. If you believe you
+          should have access, contact your administrator.
+        </p>
+        <Link
+          to="/dashboard"
+          className="inline-block mt-6 px-4 py-2 rounded-xl bg-[#0a66c2] text-white text-xs font-bold hover:bg-[#004182] transition-colors"
+        >
+          Back to Dashboard
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Wraps a route that requires authentication.
+ *
+ * @param {object} props
+ * @param {React.ReactNode} props.children
+ * @param {string} [props.requiredRole]   role the user must hold
+ * @param {boolean} [props.allowAdmin]    let admins through a non-admin route
+ * @param {boolean} [props.explainDenial] show a message instead of redirecting
+ *                                        when the role check fails
+ */
+export default function ProtectedRoute({
+  children, requiredRole, allowAdmin = false, explainDenial = false,
+}) {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const location = useLocation();
 
@@ -50,7 +85,9 @@ export default function ProtectedRoute({ children, requiredRole, allowAdmin = fa
   }
 
   if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+    // A silent redirect from a link the user just clicked reads as a bug,
+    // so some routes say why instead.
+    return explainDenial ? <NotAuthorised /> : <Navigate to="/dashboard" replace />;
   }
 
   return children;

@@ -3,7 +3,8 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
 import NotificationBell from '../../features/notifications/components/NotificationBell';
 
-const navItems = [
+// Shown to every signed-in user.
+const baseNavItems = [
   {
     to: '/dashboard',
     label: 'Home',
@@ -33,10 +34,36 @@ const navItems = [
   },
 ];
 
+// Scored alumni matching needs a student profile to match against, so the
+// API rejects other roles; the link is only offered to students.
+const studentNavItems = [
+  {
+    to: '/best-fit',
+    label: 'Best Fit',
+    icon: (
+      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a6 6 0 1 0 0 12 6 6 0 0 0 0-12zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+      </svg>
+    ),
+  },
+];
+
+/**
+ * Nav entries for the signed-in role. Admins are not handled here: they get
+ * a separate console header with its own links.
+ */
+function navItemsFor(role) {
+  if (role === 'STUDENT') return [...baseNavItems, ...studentNavItems];
+  return baseNavItems;
+}
+
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Role-aware: a student sees Best Fit, an admin sees the campus Graph.
+  const navItems = navItemsFor(user?.role);
 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -95,12 +122,34 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {/* Center: Portal Label */}
-            <div className="hidden sm:flex items-center space-x-1 text-xs font-semibold">
-              <span className="text-slate-300 px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/60 flex items-center gap-1.5">
-                <span className="text-emerald-400">●</span> Campus Administration & Governance
-              </span>
-            </div>
+            {/* Center: Console sections */}
+            <nav className="hidden sm:flex items-center gap-2 text-xs font-semibold" aria-label="Admin navigation">
+              <NavLink
+                to="/admin"
+                end
+                className={({ isActive }) =>
+                  `px-3 py-1 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-slate-700 text-white border-slate-600'
+                      : 'text-slate-300 bg-slate-800/80 border-slate-700/60 hover:bg-slate-700/80'
+                  }`
+                }
+              >
+                <span className="text-emerald-400">●</span> Governance
+              </NavLink>
+              <NavLink
+                to="/network/graph"
+                className={({ isActive }) =>
+                  `px-3 py-1 rounded-lg border transition-colors ${
+                    isActive
+                      ? 'bg-slate-700 text-white border-slate-600'
+                      : 'text-slate-300 bg-slate-800/80 border-slate-700/60 hover:bg-slate-700/80'
+                  }`
+                }
+              >
+                🕸️ Campus Graph
+              </NavLink>
+            </nav>
 
             {/* Right: Admin Account & Logout */}
             <div className="flex items-center gap-3">

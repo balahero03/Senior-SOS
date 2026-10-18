@@ -1,11 +1,16 @@
 // frontend/src/features/discover/pages/DiscoverPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 import MemberCard from '../components/MemberCard';
 import { getDiscoverUsers, getDepartments } from '../api';
+import useAuthStore from '../../../stores/authStore';
 
 export default function DiscoverPage() {
+  const { user } = useAuthStore();
+  // Best-fit matching scores alumni against a student profile, so it is
+  // only offered to students.
+  const isStudent = user?.role === 'STUDENT';
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 
@@ -85,14 +90,26 @@ export default function DiscoverPage() {
       <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6">
-          <span className="text-xs font-bold text-[#0a66c2] uppercase tracking-wider">
-            Campus Directory
-          </span>
-          <h1 className="text-2xl font-black text-slate-900 mt-1">Discover Campus Members</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Connect with alumni mentors, explore seniors by department, and expand your network.
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <span className="text-xs font-bold text-[#0a66c2] uppercase tracking-wider">
+              Campus Directory
+            </span>
+            <h1 className="text-2xl font-black text-slate-900 mt-1">Discover Campus Members</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Connect with alumni mentors, explore seniors by department, and expand your network.
+            </p>
+          </div>
+          {/* Browsing works when you know who you want; this is for when you
+              do not. Students only — the API rejects other roles. */}
+          {isStudent && (
+            <Link
+              to="/best-fit"
+              className="shrink-0 px-4 py-2 rounded-xl bg-[#0a66c2] text-white text-xs font-bold hover:bg-[#004182] transition-colors whitespace-nowrap"
+            >
+              🎯 Find my best matches
+            </Link>
+          )}
         </div>
 
         {/* Filter Card */}

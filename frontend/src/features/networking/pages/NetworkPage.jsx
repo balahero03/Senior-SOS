@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
+import useAuthStore from '../../../stores/authStore';
 import {
   getConnections,
   getIncomingRequests,
@@ -12,6 +13,10 @@ import {
 } from '../api';
 
 export default function NetworkPage() {
+  const { user } = useAuthStore();
+  // The graph page is administrator-only, so students and alumni are not
+  // shown a link that would only tell them they cannot open it.
+  const isAdmin = user?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState('connections'); // 'connections' | 'incoming' | 'outgoing'
   const [connections, setConnections] = useState([]);
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -106,9 +111,16 @@ export default function NetworkPage() {
               Grow your relationships with alumni mentors and campus peers.
             </p>
           </div>
-          <Link to="/discover" className="btn-linkedin-secondary text-xs self-start sm:self-auto">
-            🔍 Find More Alumni
-          </Link>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {isAdmin && (
+              <Link to="/network/graph" className="btn-linkedin-secondary text-xs whitespace-nowrap">
+                🕸️ View Network Graph
+              </Link>
+            )}
+            <Link to="/discover" className="btn-linkedin-secondary text-xs whitespace-nowrap">
+              🔍 Find More Alumni
+            </Link>
+          </div>
         </div>
 
         {/* Tab Navigation */}

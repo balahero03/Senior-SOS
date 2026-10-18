@@ -9,6 +9,7 @@ const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { createNotification } = require('../services/notificationService');
+const graph = require('../services/graphService');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -291,6 +292,22 @@ const respondToRequest = asyncHandler(async (req, res) => {
     return { updatedRequest, connection };
   });
 
+  // Mirror into Neo4j after the PostgreSQL transaction has committed.
+  // The graph is derived data: a failure here must not fail the request or
+  // roll back the connection. graph_synced_at stays NULL so the next
+  // `npm run graph:sync` picks it up.
+  if (graph.isGraphEnabled()) {
+    try {
+      await graph.addConnection(userA, userB, result.connection.connectedAt.toISOString());
+      await prisma.connection.update({
+        where: { userA_userB: { userA, userB } },
+        data: { graphSyncedAt: new Date() },
+      });
+    } catch (err) {
+      console.error('[connections] graph mirror failed (will retry on next sync):', err.message);
+    }
+  }
+
   // Notify original requester that their connection request was accepted
   await createNotification({
     recipientId: connectionRequest.senderId,
@@ -420,6 +437,15 @@ const removeConnection = asyncHandler(async (req, res) => {
       userA_userB: { userA, userB },
     },
   });
+
+  // Keep the graph in step. Derived data, so failures are logged only.
+  if (graph.isGraphEnabled()) {
+    try {
+      await graph.removeConnection(userA, userB);
+    } catch (err) {
+      console.error('[connections] graph removal failed:', err.message);
+    }
+  }
 
   res.json({
     success: true,
