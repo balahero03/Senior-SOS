@@ -1,6 +1,6 @@
 // frontend/src/features/admin/pages/AdminDashboardPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 import ApiLogsPanel from '../components/ApiLogsPanel';
 import PageHeading from '../../../components/ui/PageHeading';
@@ -377,6 +377,12 @@ export default function AdminDashboardPage() {
           >
             🧾 API Transcript
           </button>
+          <Link
+            to="/network/graph"
+            className="pb-3 px-3 sm:px-4 text-xs sm:text-sm font-semibold transition-all shrink-0 flex items-center gap-1.5 text-slate-500 hover:text-slate-800"
+          >
+            🕸️ Network Graph
+          </Link>
         </div>
 
         {/* TAB 1: Platform Overview & Executive Analytics */}

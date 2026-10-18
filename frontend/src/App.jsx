@@ -60,7 +60,9 @@ export default function App() {
         <Route
           path="/network/graph"
           element={
-            <ProtectedRoute>
+            // Administrators only. explainDenial so a student who follows an
+            // old link is told why, rather than being bounced silently.
+            <ProtectedRoute requiredRole="ADMIN" explainDenial>
               <NetworkGraphPage />
             </ProtectedRoute>
           }
