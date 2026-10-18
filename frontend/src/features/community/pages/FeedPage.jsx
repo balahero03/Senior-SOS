@@ -374,13 +374,15 @@ export default function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [recommendedUsers, setRecommendedUsers] = useState([]);
   const [connectingId, setConnectingId] = useState(null);
-  // Read synchronously by the observer callback, which closes over stale state.
+  // The observer callback is created once, so it cannot close over state.
+  // These refs give it the live values.
   const loadingRef = useRef(false);
   const sentinelRef = useRef(null);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
 
   const displayName = user?.name || 'there';
   const initials = displayName.charAt(0).toUpperCase();
@@ -407,15 +409,19 @@ export default function FeedPage() {
 
       // Trust the server's own pagination rather than inferring from length.
       const { page: current, totalPages } = data.pagination || {};
-      setHasMore(
-        totalPages != null && current != null
-          ? current < totalPages
-          : batch.length === POSTS_PER_PAGE,
-      );
-      setPage(pageNum);
+      const more = totalPages != null && current != null
+        ? current < totalPages
+        : batch.length === POSTS_PER_PAGE;
+
+      // pageRef, not state: the observer reads it before React re-renders,
+      // and nothing in the markup needs the page number.
+      pageRef.current = pageNum;
+      hasMoreRef.current = more;
+      setHasMore(more);
     } catch (err) {
       setError(err?.response?.data?.error?.message || 'Could not load posts.');
       // Stop the observer retrying a failing request on every scroll tick.
+      hasMoreRef.current = false;
       setHasMore(false);
     } finally {
       loadingRef.current = false;
@@ -432,22 +438,43 @@ export default function FeedPage() {
 
   // Load the next slot when the sentinel below the last post scrolls into
   // view, a little before it is actually reached.
+  //
+  // The observer is created once and reads the live page/hasMore from refs.
+  // Keying it on `page` instead would tear down and rebuild the observer on
+  // every load, and a rebuild that lands while the sentinel is already inside
+  // the margin stops producing callbacks — the feed then sticks until the
+  // reader scrolls away and back.
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore) return undefined;
+    if (!sentinel) return undefined;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingRef.current) {
-          loadPosts(page + 1);
-        }
+        if (!entries[0].isIntersecting) return;
+        if (loadingRef.current || !hasMoreRef.current) return;
+        loadPosts(pageRef.current + 1);
       },
-      { rootMargin: '400px 0px' },
+      { rootMargin: '600px 0px' },
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, page, loadPosts]);
+  }, [loadPosts]);
+
+  // After each batch renders, the sentinel may still sit inside the margin
+  // (five posts are often shorter than the viewport). The observer does not
+  // re-fire without a fresh crossing, so advance explicitly while there is
+  // room left on screen.
+  useEffect(() => {
+    if (loading || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const { top } = sentinel.getBoundingClientRect();
+    if (top <= window.innerHeight + 600) {
+      loadPosts(pageRef.current + 1);
+    }
+  }, [posts, loading, hasMore, loadPosts]);
 
   const handlePostCreated = (newPost) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -484,7 +511,7 @@ export default function FeedPage() {
   // Kept as a fallback for when the observer cannot fire — no JS scroll
   // events on some browsers, or a viewport tall enough that the sentinel
   // never leaves and re-enters view.
-  const handleLoadMore = () => loadPosts(page + 1);
+  const handleLoadMore = () => loadPosts(pageRef.current + 1);
 
   const handleConnect = async (targetUserId) => {
     setConnectingId(targetUserId);
