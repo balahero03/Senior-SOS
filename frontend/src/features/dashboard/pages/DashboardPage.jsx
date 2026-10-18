@@ -43,12 +43,22 @@ function LinkedInPostCard({ post, currentUserId, onReact, onDelete }) {
   const isOwner = post.authorId === currentUserId;
   const isAlumni = post.author?.role === 'ALUMNI';
 
+  // GET /api/posts hydrates authors as a flat object (company, designation,
+  // department, graduationYear). The nested shapes are kept as a fallback for
+  // any endpoint that returns a full Prisma user.
+  const authorCompany = post.author?.company || post.author?.alumniProfile?.company?.name;
+  const authorDesignation = post.author?.designation || post.author?.alumniProfile?.designation;
+  const authorDepartment = post.author?.department
+    || post.author?.academicProfile?.department?.code
+    || post.author?.academicProfile?.department?.name;
+  const authorGradYear = post.author?.graduationYear || post.author?.academicProfile?.graduationYear;
+
   const authorHeadline = isAlumni
-    ? post.author?.alumniProfile?.company?.name
-      ? `${post.author?.alumniProfile?.designation || 'Alumnus'} at ${post.author.alumniProfile.company.name}`
-      : 'Alumni Mentor'
-    : post.author?.academicProfile?.department?.name
-    ? `${post.author.academicProfile.department.name} • Class of ${post.author.academicProfile.graduationYear || '2027'}`
+    ? authorCompany
+      ? `${authorDesignation || 'Alumnus'} at ${authorCompany}`
+      : authorDesignation || 'Alumni Mentor'
+    : authorDepartment
+    ? `${authorDepartment}${authorGradYear ? ` • Class of ${authorGradYear}` : ''}`
     : 'Student';
 
   const loadComments = useCallback(async () => {
