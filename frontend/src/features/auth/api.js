@@ -44,15 +44,13 @@ export async function getDepartments() {
       return response.data.data.departments;
     }
   } catch (_err) {
-    // Fallback if offline or endpoint unreachable
+    // Fall through to an empty list below.
   }
-  return [
-    { id: 'IT',    code: 'IT',    name: 'Information Technology' },
-    { id: 'CSE',   code: 'CSE',   name: 'Computer Science & Engineering' },
-    { id: 'ECE',   code: 'ECE',   name: 'Electronics & Communication Engineering' },
-    { id: 'MECH',  code: 'MECH',  name: 'Mechanical Engineering' },
-    { id: 'CIVIL', code: 'CIVIL', name: 'Civil Engineering' },
-  ];
+  // No hardcoded fallback: registration posts departmentId, which the API
+  // validates as a UUID. Offering codes like "IT" as the id produced a form
+  // that looked fine and then failed on submit. An empty list surfaces the
+  // real problem instead.
+  return [];
 }
 
 /**

@@ -25,7 +25,7 @@ export default function AdminDashboardPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'departments' | 'audit'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'masterData' | 'audit'
   const [stats, setStats] = useState({
     totalUsers: 0,
     studentsCount: 0,
@@ -35,6 +35,7 @@ export default function AdminDashboardPage() {
     activeConnectionsCount: 0,
     totalDepartmentsCount: 0,
     totalCompaniesCount: 0,
+    enrolledTotal: 0,
     departmentsBreakdown: [],
   });
   const [verifications, setVerifications] = useState([]);
@@ -45,6 +46,7 @@ export default function AdminDashboardPage() {
   const [departments, setDepartments] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [companySearch, setCompanySearch] = useState('');
+  const [debouncedCompanySearch, setDebouncedCompanySearch] = useState('');
   const [newDept, setNewDept] = useState({ code: '', name: '' });
   const [newCompany, setNewCompany] = useState({ name: '' });
   const [isSubmittingDept, setIsSubmittingDept] = useState(false);
@@ -55,6 +57,10 @@ export default function AdminDashboardPage() {
   const [isAuditLoading, setIsAuditLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+  // loadUsers depends on the query, so binding it straight to the input would
+  // fire a request per keystroke. Settle first, then search.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [verificationSearch, setVerificationSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -86,9 +92,10 @@ export default function AdminDashboardPage() {
 
   const loadUsers = useCallback(
     async (page = 1) => {
+      setIsUsersLoading(true);
       try {
         const params = { page, limit: 10 };
-        if (searchQuery.trim()) params.q = searchQuery.trim();
+        if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
         if (roleFilter) params.role = roleFilter;
         if (statusFilter) params.status = statusFilter;
 
@@ -99,23 +106,29 @@ export default function AdminDashboardPage() {
         }
       } catch (err) {
         console.error('Failed to load users list:', err);
+        showFeedback(
+          err.response?.data?.error?.message || 'Failed to load the user directory',
+          'error',
+        );
+      } finally {
+        setIsUsersLoading(false);
       }
     },
-    [searchQuery, roleFilter, statusFilter]
+    [debouncedSearch, roleFilter, statusFilter]
   );
 
   const loadMasterData = useCallback(async () => {
     try {
       const [deptList, compList] = await Promise.all([
         getDepartmentsList().catch(() => []),
-        getCompaniesList(companySearch).catch(() => []),
+        getCompaniesList(debouncedCompanySearch).catch(() => []),
       ]);
       setDepartments(deptList || []);
       setCompanies(compList || []);
     } catch (err) {
       console.error('Failed to load master data:', err);
     }
-  }, [companySearch]);
+  }, [debouncedCompanySearch]);
 
   const loadAuditLogs = useCallback(async (page = 1) => {
     setIsAuditLoading(true);
@@ -135,6 +148,16 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCompanySearch(companySearch), 350);
+    return () => clearTimeout(timer);
+  }, [companySearch]);
 
   useEffect(() => {
     if (activeTab === 'users') {
@@ -235,6 +258,9 @@ export default function AdminDashboardPage() {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    // Skip the debounce wait when the admin submits explicitly. If the text has
+    // settled already this is a no-op and the effect below does not refire.
+    setDebouncedSearch(searchQuery);
     loadUsers(1);
   };
 
@@ -405,7 +431,9 @@ export default function AdminDashboardPage() {
 
                 <div className="space-y-3.5">
                   {(stats.departmentsBreakdown || []).map((dept) => {
-                    const totalEnrolled = stats.totalUsers || 1;
+                    // Share of enrolled users, not of all accounts: admins have
+                    // no department, so totalUsers never sums to 100%.
+                    const totalEnrolled = stats.enrolledTotal || stats.totalUsers || 1;
                     const pct = Math.min(100, Math.round(((dept.enrolledCount || 0) / totalEnrolled) * 100));
                     return (
                       <div key={dept.code} className="space-y-1">
@@ -712,7 +740,15 @@ export default function AdminDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
-                    {users.length === 0 ? (
+                    {/* Without this branch the table claims no matches while
+                        the first request is still in flight. */}
+                    {isUsersLoading && users.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                          Loading campus directory...
+                        </td>
+                      </tr>
+                    ) : users.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="py-12 text-center text-slate-400">
                           No users found matching query
@@ -1006,10 +1042,10 @@ export default function AdminDashboardPage() {
                       <input
                         type="text"
                         value={companySearch}
-                        onChange={(e) => {
-                          setCompanySearch(e.target.value);
-                          getCompaniesList(e.target.value).then(setCompanies).catch(() => {});
-                        }}
+                        // loadMasterData already reruns when companySearch
+                        // changes, debounced below. Fetching here too raced
+                        // that request and could show the wrong results.
+                        onChange={(e) => setCompanySearch(e.target.value)}
                         placeholder="Search employers..."
                         className="w-full sm:w-48 pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -1117,8 +1153,15 @@ export default function AdminDashboardPage() {
 
                             {/* Actor */}
                             <td className="py-3.5 px-6">
-                              <div className="font-semibold text-slate-800">{log.actor?.name || 'System Admin'}</div>
-                              <div className="text-[11px] text-slate-400">{log.actor?.email || 'admin@seniorsos.edu'}</div>
+                              {/* actorId is SetNull on delete, so a missing
+                                  actor means the account is gone — do not
+                                  attribute the action to the current admin. */}
+                              <div className="font-semibold text-slate-800">
+                                {log.actor?.name || 'Deleted account'}
+                              </div>
+                              <div className="text-[11px] text-slate-400">
+                                {log.actor?.email || '—'}
+                              </div>
                             </td>
 
                             {/* Action */}
