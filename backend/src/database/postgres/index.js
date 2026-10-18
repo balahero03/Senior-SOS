@@ -22,9 +22,30 @@ const prisma = new PrismaClient({
  * Opens the Prisma connection pool and verifies connectivity.
  * Call once at application startup (server.js).
  */
-async function connectPostgres() {
-  await prisma.$connect();
-  console.log('[postgres] Connected to PostgreSQL via Prisma');
+async function connectPostgres({ retries = 5, delayMs = 2000 } = {}) {
+  // Serverless Postgres (Neon) suspends an idle compute endpoint to zero, so the
+  // first connection after a quiet period can time out with P1001 while it cold
+  // starts. Retry with backoff instead of letting one timeout kill the process.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await prisma.$connect();
+      console.log('[postgres] Connected to PostgreSQL via Prisma');
+      return;
+    } catch (err) {
+      const isUnreachable = err.errorCode === 'P1001' || err.errorCode === 'P1017';
+
+      if (!isUnreachable || attempt > retries) {
+        throw err;
+      }
+
+      const waitMs = delayMs * attempt;
+      console.warn(
+        `[postgres] Database unreachable (${err.errorCode}), attempt ${attempt}/${retries}. ` +
+          `Retrying in ${waitMs}ms. If this is a serverless endpoint it may be cold starting.`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
 }
 
 /**

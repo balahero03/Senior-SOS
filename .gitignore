@@ -2,6 +2,11 @@
 **/node_modules/
 npm-debug.log*
 *.log
-dist/
+
+# Build output.
 **/dist/
+**/build/
 .vite/
+
+# Local environment files.
+.env
