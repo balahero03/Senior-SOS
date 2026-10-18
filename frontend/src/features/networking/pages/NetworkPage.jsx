@@ -106,9 +106,14 @@ export default function NetworkPage() {
               Grow your relationships with alumni mentors and campus peers.
             </p>
           </div>
-          <Link to="/discover" className="btn-linkedin-secondary text-xs self-start sm:self-auto">
-            🔍 Find More Alumni
-          </Link>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Link to="/network/graph" className="btn-linkedin-secondary text-xs whitespace-nowrap">
+              🕸️ View Network Graph
+            </Link>
+            <Link to="/discover" className="btn-linkedin-secondary text-xs whitespace-nowrap">
+              🔍 Find More Alumni
+            </Link>
+          </div>
         </div>
 
         {/* Tab Navigation */}

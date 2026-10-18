@@ -67,6 +67,18 @@ const config = {
     clientOrigin: optional('CLIENT_ORIGIN', 'http://localhost:5173'),
   },
 
+  neo4j: {
+    // Neo4j Aura connection. Empty uri disables all graph features, so the
+    // app still runs without it.
+    uri: optional('NEO4J_URI', ''),
+    user: optional('NEO4J_USER', 'neo4j'),
+    password: optional('NEO4J_PASSWORD', ''),
+    database: optional('NEO4J_DATABASE', 'neo4j'),
+    get enabled() {
+      return Boolean(this.uri && this.password);
+    },
+  },
+
   transcriptLog: {
     // Full request/response transcript to logs/api-<date>.txt.
     // Records bodies verbatim, including passwords and tokens, so it is

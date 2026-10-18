@@ -16,12 +16,16 @@ const config = require('./config');
 const app = require('./app');
 const { connectPostgres, disconnectPostgres } = require('./database/postgres');
 const { connectMongoDB, disconnectMongoDB } = require('./database/mongodb');
+const { connectNeo4j, disconnectNeo4j } = require('./database/neo4j');
 const { initSocket } = require('./realtime/socket');
 
 async function startServer() {
   // Connect both databases before accepting requests
   await connectPostgres();
   await connectMongoDB();
+  // Graph is a derived view; a failure here logs and disables graph
+  // features rather than preventing startup.
+  await connectNeo4j();
 
   const server = app.listen(config.port, () => {
     console.log(`[server] SeniorSOS backend running on port ${config.port} (${config.env})`);
@@ -39,6 +43,7 @@ async function startServer() {
     server.close(async () => {
       await disconnectPostgres();
       await disconnectMongoDB();
+      await disconnectNeo4j();
       console.log('[server] HTTP server closed. Exiting.');
       process.exit(0);
     });

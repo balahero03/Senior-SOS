@@ -10,6 +10,7 @@ import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
+import NetworkGraphPage from './features/networking/pages/NetworkGraphPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
@@ -53,6 +54,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <NetworkPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/network/graph"
+          element={
+            <ProtectedRoute>
+              <NetworkGraphPage />
             </ProtectedRoute>
           }
         />
