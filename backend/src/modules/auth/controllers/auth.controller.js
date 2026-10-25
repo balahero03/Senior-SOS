@@ -56,7 +56,16 @@ const register = asyncHandler(async (req, res) => {
     return res.status(422).json({ success: false, errors });
   }
 
-  const { user, accessToken, rawRefreshToken } = await authService.register(data);
+  const { user, accessToken, rawRefreshToken, pendingApproval } = await authService.register(data);
+
+  // Alumni wait for admin approval: no session is started and no cookies are set.
+  if (pendingApproval) {
+    return res.status(201).json({
+      success: true,
+      message: 'Application submitted. You can log in once an admin approves your alumni account.',
+      data: { user, pendingApproval: true },
+    });
+  }
 
   res
     .cookie('accessToken', accessToken, accessCookieOptions())

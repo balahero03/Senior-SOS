@@ -71,6 +71,29 @@ function sanitiseUser(user) {
 // ─── Auth service operations ──────────────────────────────────────────────────
 
 /**
+ * Throws unless the user may sign in as far as alumni verification goes.
+ * Students and admins are unaffected.
+ */
+function assertAlumniApproved(user) {
+  if (user.role !== 'ALUMNI') return;
+  const verification = user.alumniProfile?.verificationStatus;
+  if (verification === 'APPROVED') return;
+
+  if (verification === 'REJECTED') {
+    throw new AppError(
+      'Your alumni verification was not approved. You can register again with updated details.',
+      403,
+      'ALUMNI_REJECTED',
+    );
+  }
+  throw new AppError(
+    'Your alumni account is awaiting admin approval. You will be able to log in once it is approved.',
+    403,
+    'ALUMNI_PENDING_APPROVAL',
+  );
+}
+
+/**
  * Register a new STUDENT or ALUMNI.
  *
  * Per PDF §3.2:
@@ -95,10 +118,26 @@ async function register(data) {
     experienceYears,
   } = data;
 
-  // 1. Duplicate email check
+  // 1. Duplicate email check. The one exception: an alumnus whose application
+  //    was REJECTED may register again with the same email (and starts a fresh
+  //    application). A pending application is reported as such rather than as a
+  //    generic duplicate, so the person knows to wait.
   const existing = await authRepo.findUserByEmail(email);
+  let reapplyUserId = null;
   if (existing) {
-    throw new AppError('An account with this email already exists', 409, 'EMAIL_TAKEN');
+    const verification = existing.role === 'ALUMNI' ? existing.alumniProfile?.verificationStatus : null;
+
+    if (role === 'ALUMNI' && verification === 'REJECTED' && existing.status === 'ACTIVE') {
+      reapplyUserId = existing.id;
+    } else if (existing.role === 'ALUMNI' && verification !== 'APPROVED' && verification !== 'REJECTED' && existing.status === 'ACTIVE') {
+      throw new AppError(
+        'An application for this email is already awaiting admin approval. You will be able to log in once it is approved.',
+        409,
+        'ALUMNI_PENDING_APPROVAL',
+      );
+    } else {
+      throw new AppError('An account with this email already exists', 409, 'EMAIL_TAKEN');
+    }
   }
 
   // 2. Hash password (bcrypt, cost=12)
@@ -116,7 +155,19 @@ async function register(data) {
 
   // 5. Create user (one Prisma transaction per repository layer)
   let newUser;
-  if (role === 'ALUMNI') {
+  if (role === 'ALUMNI' && reapplyUserId) {
+    newUser = await authRepo.reapplyAlumni(reapplyUserId, {
+      name,
+      passwordHash,
+      departmentId: resolvedDepartmentId,
+      graduationYear,
+      bio,
+      careerInterests,
+      companyId,
+      designation,
+      experienceYears,
+    });
+  } else if (role === 'ALUMNI') {
     newUser = await authRepo.createAlumni({
       name,
       email,
@@ -139,6 +190,14 @@ async function register(data) {
       bio,
       careerInterests,
     });
+  }
+
+  // Alumni are not signed in: their account stays unusable until an admin
+  // approves it. They are also not added to the graph yet, so an unapproved
+  // alumnus can never show up in connection suggestions; the admin approval
+  // step syncs them.
+  if (role === 'ALUMNI') {
+    return { user: sanitiseUser(newUser), accessToken: null, rawRefreshToken: null, pendingApproval: true };
   }
 
   // Mirror the new user into the graph straight away. Without this the node
@@ -185,7 +244,12 @@ async function login({ email, password }) {
     throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
   }
 
-  // 4. Issue tokens
+  // 4. Alumni may only sign in once an admin has approved them. This runs after
+  //    the password check, so the status is only ever revealed to the account's
+  //    owner and never to someone guessing emails.
+  assertAlumniApproved(user);
+
+  // 5. Issue tokens
   const accessToken = signAccessToken(user.id, user.role);
   const { raw: rawRefreshToken, hash: tokenHash } = generateRefreshToken();
 
@@ -217,6 +281,18 @@ async function refreshTokens(rawRefreshToken) {
   const user = record.user;
   if (user.status !== 'ACTIVE') {
     throw new AppError('Account is not active', 403, 'ACCOUNT_INACTIVE');
+  }
+
+  // A session must not outlive an alumnus's approval: if they were rejected (or
+  // sent back to pending) after signing in, stop renewing it.
+  if (user.role === 'ALUMNI') {
+    const fullUser = await authRepo.findUserById(user.id);
+    try {
+      assertAlumniApproved(fullUser);
+    } catch (err) {
+      await authRepo.revokeRefreshToken(record.id);
+      throw err;
+    }
   }
 
   // Rotate: revoke old token

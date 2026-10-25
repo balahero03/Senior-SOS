@@ -53,6 +53,7 @@ export default function RegisterPage() {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
@@ -145,6 +146,11 @@ export default function RegisterPage() {
       }
 
       const data = await registerUser(payload);
+      // Alumni are not signed in: they wait for an admin to approve them.
+      if (data.data.pendingApproval) {
+        setSubmittedEmail(payload.email);
+        return;
+      }
       setUser(data.data.user);
       navigate('/dashboard', { replace: true });
     } catch (err) {
@@ -156,6 +162,48 @@ export default function RegisterPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Alumni are not signed in after registering: an admin has to approve them
+  // first, so confirm that instead of dropping them into the app.
+  if (submittedEmail) {
+    return (
+      <div className="min-h-screen bg-[#f4f2ee] flex flex-col justify-between font-sans">
+        <header className="px-6 sm:px-12 py-5 max-w-7xl w-full mx-auto flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-1.5" aria-label="SeniorSOS home">
+            <span className="font-black text-2xl tracking-tight text-slate-900 leading-none">
+              Senior<span className="text-[#0a66c2]">SOS</span>
+            </span>
+          </Link>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="w-full max-w-[440px] bg-white rounded-2xl border border-slate-200/90 shadow-[0_4px_24px_rgba(0,0,0,0.06)] p-7 sm:p-9 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-2xl">
+              ⏳
+            </div>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Application submitted</h1>
+            <p className="text-sm text-slate-600">
+              Thanks for registering as an alumnus. An admin will review your details, and you
+              can log in with <span className="font-semibold text-slate-800">{submittedEmail}</span> once
+              your account is approved.
+            </p>
+            <p className="text-xs text-slate-500">
+              Until then, signing in shows &ldquo;approval pending&rdquo;. If your application is
+              not approved, you can register again with updated details.
+            </p>
+            <Link
+              to="/login"
+              className="inline-block mt-2 px-6 py-2.5 rounded-full bg-[#0a66c2] text-white text-sm font-bold hover:bg-[#004182] transition-colors"
+            >
+              Back to sign in
+            </Link>
+          </div>
+        </main>
+
+        <footer className="pb-6" />
+      </div>
+    );
   }
 
   return (

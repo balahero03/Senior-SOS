@@ -18,13 +18,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
+  const [apiErrorCode, setApiErrorCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
-    if (apiError) setApiError('');
+    if (apiError) { setApiError(''); setApiErrorCode(''); }
   }
 
   function validate() {
@@ -46,6 +47,7 @@ export default function LoginPage() {
 
     setLoading(true);
     setApiError('');
+    setApiErrorCode('');
 
     try {
       const data = await loginUser({ email: form.email, password: form.password });
@@ -58,6 +60,7 @@ export default function LoginPage() {
         err.response?.data?.error?.message ||
         'Login failed. Please check your credentials and try again.';
       setApiError(message);
+      setApiErrorCode(err.response?.data?.error?.code || '');
     } finally {
       setLoading(false);
     }
@@ -139,16 +142,35 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error Banner */}
+            {/* Error Banner. Alumni awaiting approval get a calmer notice than a failed login. */}
             {apiError && (
               <div
-                className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5 animate-slide-up"
+                className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 animate-slide-up ${
+                  apiErrorCode === 'ALUMNI_PENDING_APPROVAL'
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}
                 role="alert"
               >
-                <svg className="w-4 h-4 shrink-0 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className={`w-4 h-4 shrink-0 mt-0.5 ${apiErrorCode === 'ALUMNI_PENDING_APPROVAL' ? 'text-amber-500' : 'text-red-500'}`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                <span>{apiError}</span>
+                <div>
+                  <p className="font-semibold">
+                    {apiErrorCode === 'ALUMNI_PENDING_APPROVAL' && 'Approval pending. '}
+                    {apiErrorCode === 'ALUMNI_REJECTED' && 'Application not approved. '}
+                  </p>
+                  <p>{apiError}</p>
+                  {apiErrorCode === 'ALUMNI_REJECTED' && (
+                    <Link to="/register" className="inline-block mt-1.5 font-bold underline">
+                      Register again
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 

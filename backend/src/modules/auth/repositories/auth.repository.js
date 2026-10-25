@@ -184,6 +184,60 @@ async function createAlumni({
   });
 }
 
+/**
+ * Re-apply after a rejection: the rejected alumnus registers again with the same
+ * email. Their existing account is updated in place (new password, profile and
+ * company) and the application goes back to PENDING for an admin to review.
+ * Every old session is revoked, so nothing from the rejected period survives.
+ * One transaction, so a failure leaves the account exactly as it was.
+ */
+async function reapplyAlumni(userId, {
+  name,
+  passwordHash,
+  departmentId,
+  graduationYear,
+  bio,
+  careerInterests,
+  companyId,
+  designation,
+  experienceYears,
+}) {
+  return prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { name, passwordHash } });
+
+    await tx.academicProfile.upsert({
+      where: { userId },
+      update: { departmentId, graduationYear, bio: bio || null, careerInterests: careerInterests || null },
+      create: { userId, departmentId, graduationYear, bio: bio || null, careerInterests: careerInterests || null },
+    });
+
+    await tx.alumniProfile.update({
+      where: { userId },
+      data: {
+        companyId: companyId || null,
+        designation: designation || null,
+        experienceYears: experienceYears !== undefined ? experienceYears : null,
+        verificationStatus: 'PENDING',
+        verifiedAt: null,
+      },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return tx.user.findUnique({
+      where: { id: userId },
+      include: {
+        academicProfile: { include: { department: true } },
+        alumniProfile: { include: { company: true } },
+        userSettings: true,
+      },
+    });
+  });
+}
+
 // ─── Company upsert ───────────────────────────────────────────────────────────
 
 /**
@@ -267,6 +321,7 @@ module.exports = {
   resolveDepartmentId,
   createStudent,
   createAlumni,
+  reapplyAlumni,
   upsertCompany,
   createRefreshToken,
   findRefreshToken,
