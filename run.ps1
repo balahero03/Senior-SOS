@@ -140,7 +140,44 @@ try {
 
   Write-Host 'Generating Prisma client and applying database migrations...'
   Invoke-Npm $backendDir @('run', 'db:generate')
-  Invoke-Npm $backendDir @('run', 'db:migrate:prod')
+
+  # Neon's pooled host ("-pooler") cannot take the advisory lock `prisma migrate`
+  # needs, so it times out (P1002). If DIRECT_URL points at the pooler, use the
+  # direct host for this one command via the process environment. backend/.env
+  # is not modified, and Prisma does not override variables that are already set.
+  $previousDirectUrl = $env:DIRECT_URL
+  $directLine = Select-String -Path $envFile -Pattern '^\s*DIRECT_URL\s*=\s*"?([^"\r\n]+)"?' |
+    Select-Object -First 1
+  if ($directLine) {
+    $directUrl = $directLine.Matches[0].Groups[1].Value
+    if ($directUrl -match '-pooler\.') {
+      $env:DIRECT_URL = $directUrl -replace '-pooler\.', '.'
+      Write-Host 'DIRECT_URL uses a pooled host; using the direct host for migrations only.'
+    }
+  }
+  try {
+    # `migrate status` takes no advisory lock, so check it first: when nothing is
+    # pending there is nothing to deploy, and a stale lock left on the database
+    # by an earlier interrupted migrate cannot block startup.
+    Push-Location $backendDir
+    try {
+      & npx.cmd prisma migrate status *> $null
+      $migrationsUpToDate = $LASTEXITCODE -eq 0
+    }
+    finally {
+      Pop-Location
+    }
+
+    if ($migrationsUpToDate) {
+      Write-Host 'Database schema is up to date; no migrations to apply.'
+    }
+    else {
+      Invoke-Npm $backendDir @('run', 'db:migrate:prod')
+    }
+  }
+  finally {
+    $env:DIRECT_URL = $previousDirectUrl
+  }
 
   Write-Host 'Starting SeniorSOS frontend and backend...'
   $processes += Start-Process -FilePath 'npm.cmd' `

@@ -238,7 +238,7 @@ export default function BestFitPage() {
           <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/15 border border-white/20">
             Best fit
           </span>
-          <h1 className="text-xl font-bold mt-2">Who should you talk to?</h1>
+          <h1 className="text-xl font-bold mt-2 text-white">Who should you talk to?</h1>
           <p className="text-sm text-blue-100/90 max-w-2xl mt-1">
             Verified alumni ranked against your skills, interests, department and
             shared connections. Every suggestion explains why it is here.

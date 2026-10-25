@@ -257,7 +257,7 @@ export default function PeersPage() {
           <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-white/15 border border-white/20">
             People like you
           </span>
-          <h1 className="text-xl font-bold mt-2">
+          <h1 className="text-xl font-bold mt-2 text-white">
             {isAlumni ? 'Who should you collaborate with?' : 'Who should you team up with?'}
           </h1>
           <p className="text-sm text-blue-100/90 max-w-2xl mt-1">
