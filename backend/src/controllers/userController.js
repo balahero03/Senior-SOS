@@ -7,6 +7,7 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const graph = require('../services/graphService');
 
 const PROFILE_PRIVATE_MESSAGE = 'This profile is only visible to connections';
 
@@ -448,6 +449,11 @@ const updateProfile = asyncHandler(async (req, res) => {
       },
     },
   });
+
+  // Keep the graph node in step with the edited profile. Department,
+  // company and designation are all node properties, so a stale node makes
+  // the graph answer "who do we know at X" with the previous employer.
+  await graph.syncUserToGraph(updatedUser);
 
   res.json({
     success: true,
