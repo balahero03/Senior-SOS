@@ -36,10 +36,17 @@ const matchRoutes = require('../routes/matchRoutes');
 const userController = require('../controllers/userController');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { getRedisStatus } = require('../database/redis');
+const { limiters } = require('../middleware/rateLimit.middleware');
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 
 const app = express();
+
+// Behind an ingress or load balancer, trust its forwarded address so rate limits
+// apply to real clients and not to the proxy. Off unless TRUST_PROXY is set.
+if (config.rateLimit.trustProxy > 0) {
+  app.set('trust proxy', config.rateLimit.trustProxy);
+}
 
 // ─── Security headers ─────────────────────────────────────────────────────────
 
@@ -92,6 +99,10 @@ app.get('/health', (req, res) => {
 });
 
 // ─── API routes ───────────────────────────────────────────────────────────────
+// Whole-API abuse ceiling. Stricter per-route limits (login, reset, ...) sit on
+// the routes themselves.
+app.use('/api', limiters.api);
+
 // Mount each module router under /api/<module>.
 
 app.use('/api/auth', authRoutes);

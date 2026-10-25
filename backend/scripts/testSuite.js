@@ -2,6 +2,10 @@
 // Automated End-to-End Test Suite for SeniorSOS
 'use strict';
 
+// The suite logs in, resets and registers many times in one run; rate limiting
+// would only get in its way. Set before the app (and its config) is loaded.
+process.env.RATE_LIMIT_DISABLED = process.env.RATE_LIMIT_DISABLED || 'true';
+
 const nodeCrypto = require('crypto');
 if (!global.crypto) {
   global.crypto = nodeCrypto.webcrypto || nodeCrypto;

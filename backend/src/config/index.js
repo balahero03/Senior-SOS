@@ -94,6 +94,14 @@ const config = {
     },
   },
 
+  rateLimit: {
+    // Set RATE_LIMIT_DISABLED=true to turn limiting off (the test suite does).
+    enabled: optional('RATE_LIMIT_DISABLED', 'false') !== 'true',
+    // Number of reverse proxies (ingress, load balancer) in front of the app, so
+    // the real client address is used instead of the proxy's. 0 = none.
+    trustProxy: parseInt(optional('TRUST_PROXY', '0'), 10) || 0,
+  },
+
   transcriptLog: {
     // Full request/response transcript to logs/api-<date>.txt.
     // Records bodies verbatim, including passwords and tokens, so it is

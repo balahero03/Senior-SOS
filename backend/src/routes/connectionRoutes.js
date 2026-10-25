@@ -6,6 +6,7 @@
 
 const express = require('express');
 const { requireAuth } = require('../middleware/auth.middleware');
+const { limiters } = require('../middleware/rateLimit.middleware');
 const connectionController = require('../controllers/connectionController');
 
 const router = express.Router();
@@ -14,7 +15,7 @@ const router = express.Router();
 router.use(requireAuth);
 
 // ─── Connection Requests ─────────────────────────────────────────────────────
-router.post('/request', connectionController.sendConnectionRequest);
+router.post('/request', limiters.connectionRequest, connectionController.sendConnectionRequest);
 router.get('/requests/incoming', connectionController.getIncomingRequests);
 router.get('/requests/outgoing', connectionController.getOutgoingRequests);
 router.post('/requests/:requestId/respond', connectionController.respondToRequest);
