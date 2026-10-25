@@ -62,6 +62,51 @@ async function upsertUser(user) {
   );
 }
 
+/**
+ * Mirrors one PostgreSQL user into the graph, reading the shape the node
+ * needs straight from the record.
+ *
+ * Node properties are flattened from relations (department code, company
+ * name), so callers pass the user with `academicProfile.department` and
+ * `alumniProfile.company` included. Anything missing becomes null rather
+ * than throwing: a partial node still lets connections attach to it.
+ *
+ * @param {object} user  Prisma user with academicProfile/alumniProfile included
+ */
+async function upsertUserFromRecord(user) {
+  if (!user?.id) return;
+  await upsertUser({
+    id: user.id,
+    name: user.name ?? null,
+    role: user.role ?? null,
+    department: user.academicProfile?.department?.code ?? null,
+    graduationYear: user.academicProfile?.graduationYear ?? null,
+    company: user.alumniProfile?.company?.name ?? null,
+    designation: user.alumniProfile?.designation ?? null,
+  });
+}
+
+/**
+ * Best-effort mirror of one user, for the request paths that create or
+ * change a profile.
+ *
+ * The graph is derived data and PostgreSQL stays the system of record, so a
+ * failure here is logged and swallowed: registering or saving a profile must
+ * not fail because Neo4j is down. `npm run graph:sync` repairs any gap.
+ *
+ * @returns {Promise<boolean>} true when the node was written
+ */
+async function syncUserToGraph(user) {
+  if (!isGraphEnabled() || !user?.id) return false;
+  try {
+    await upsertUserFromRecord(user);
+    return true;
+  } catch (err) {
+    console.error(`[graph] user mirror failed for ${user.id} (will retry on next sync):`, err.message);
+    return false;
+  }
+}
+
 /** Bulk upsert, used by the sync script. */
 async function upsertUsers(users) {
   if (!users.length) return;
@@ -83,7 +128,12 @@ async function upsertUsers(users) {
 /** Mirrors one accepted connection, in both directions. */
 async function addConnection(userA, userB, since = null) {
   await runQuery(
-    `MATCH (a:User { id: $userA }), (b:User { id: $userB })
+    // MERGE, not MATCH, on the endpoints: a user who registered after the
+    // last full sync has no node yet, and MATCH would quietly match nothing
+    // and write no relationship at all. A stub node is created here and
+    // filled in by the next upsert or sync.
+    `MERGE (a:User { id: $userA })
+     MERGE (b:User { id: $userB })
      MERGE (a)-[r1:CONNECTED_TO]->(b)
        ON CREATE SET r1.since = coalesce($since, datetime())
      MERGE (b)-[r2:CONNECTED_TO]->(a)
@@ -98,7 +148,8 @@ async function addConnections(pairs) {
   if (!pairs.length) return;
   await runQuery(
     `UNWIND $pairs AS row
-     MATCH (a:User { id: row.userA }), (b:User { id: row.userB })
+     MERGE (a:User { id: row.userA })
+     MERGE (b:User { id: row.userB })
      MERGE (a)-[r1:CONNECTED_TO]->(b)
        ON CREATE SET r1.since = row.since
      MERGE (b)-[r2:CONNECTED_TO]->(a)
@@ -416,6 +467,8 @@ module.exports = {
   ensureSchema,
   upsertUser,
   upsertUsers,
+  upsertUserFromRecord,
+  syncUserToGraph,
   addConnection,
   addConnections,
   removeConnection,

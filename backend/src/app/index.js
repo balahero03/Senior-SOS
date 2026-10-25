@@ -26,7 +26,6 @@ const authRoutes = require('../modules/auth/routes/auth.routes');
 const postRoutes = require('../routes/postRoutes');
 const connectionRoutes = require('../routes/connectionRoutes');
 const mentorshipRoutes = require('../routes/mentorshipRoutes');
-const communityRoutes = require('../modules/community/routes/community.routes');
 const messagesRoutes = require('../modules/messages/routes/messages.routes');
 const userRoutes = require('../routes/userRoutes');
 const notificationRoutes = require('../routes/notificationRoutes');
@@ -107,7 +106,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/graph', graphRoutes);
 app.use('/api/match', matchRoutes);
-app.use('/api', communityRoutes);      // /api/posts fallback, other community routes
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
 // ─── 404 for unmatched API routes ────────────────────────────────────────────

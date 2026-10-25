@@ -10,6 +10,7 @@ const { Post } = require('../models');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { createNotification } = require('../services/notificationService');
+const graph = require('../services/graphService');
 
 /**
  * GET /api/admin/stats
@@ -185,6 +186,19 @@ const updateVerificationStatus = asyncHandler(async (req, res) => {
 
     return { updatedProfile, auditLog };
   });
+
+  // Verification is the point at which an alumnus becomes recommendable, so
+  // refresh the graph node with the company and designation the admin just
+  // approved. Fetched with relations because the node stores the company
+  // name and department code, not their ids.
+  const verifiedUser = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: {
+      academicProfile: { include: { department: true } },
+      alumniProfile: { include: { company: true } },
+    },
+  });
+  await graph.syncUserToGraph(verifiedUser);
 
   // Dispatch in-app notification to the reviewed alumnus
   await createNotification({
