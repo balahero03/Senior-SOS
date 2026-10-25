@@ -10,6 +10,7 @@
 
 const { prisma } = require('../database/postgres');
 const graph = require('./graphService');
+const { getHiddenUserIds } = require('./visibilityService');
 
 // Weights. Shared skills and interests matter most, because they are what the
 // student actually wants to talk about; the network signal breaks ties.
@@ -292,6 +293,12 @@ async function recommendAlumni(studentId, filters = {}) {
   for (const c of connections) excluded.add(c.userA === studentId ? c.userB : c.userA);
   for (const r of requests) excluded.add(r.senderId === studentId ? r.receiverId : r.senderId);
 
+  // Anyone who limited their profile to connections is not a candidate.
+  // Applied here rather than after scoring so a hidden person never reaches
+  // the response, not even as a name in another candidate's route.
+  const hidden = await getHiddenUserIds(studentId, 'STUDENT');
+  for (const id of hidden) excluded.add(id);
+
   const where = {
     role: 'ALUMNI',
     status: 'ACTIVE',
@@ -343,7 +350,13 @@ async function recommendAlumni(studentId, filters = {}) {
         department: filterDepartment?.code || null,
       });
       for (const r of reachable) {
-        reach.set(r.user.id, { degrees: r.degrees, route: r.route, mutualCount: r.mutualCount });
+        // The route names the people in between. Someone who is
+        // CONNECTIONS_ONLY must not be named to a stranger, so redact them
+        // while keeping the hop count, which reveals nothing by itself.
+        const route = (r.route || []).map((n) => (
+          hidden.has(n.id) ? { id: null, name: 'A shared connection' } : n
+        ));
+        reach.set(r.user.id, { degrees: r.degrees, route, mutualCount: r.mutualCount });
       }
     } catch (err) {
       // The graph is an enhancement, not a requirement.

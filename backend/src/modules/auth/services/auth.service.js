@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../../../config');
 const AppError = require('../../../shared/errors/AppError');
 const authRepo = require('../repositories/auth.repository');
+const graph = require('../../../services/graphService');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,12 @@ async function register(data) {
       careerInterests,
     });
   }
+
+  // Mirror the new user into the graph straight away. Without this the node
+  // only appears at the next `npm run graph:sync`, and until then the person
+  // is invisible to every graph feature. Best-effort by design: the graph is
+  // derived data, so registration must not fail when Neo4j is unavailable.
+  await graph.syncUserToGraph(newUser);
 
   // 5. Issue tokens
   const accessToken = signAccessToken(newUser.id, newUser.role);

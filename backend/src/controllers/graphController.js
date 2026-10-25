@@ -11,8 +11,27 @@ const graph = require('../services/graphService');
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { getHiddenUserIds } = require('../services/visibilityService');
 
 const requesterId = (req) => req.user.sub || req.user.id;
+const requesterRole = (req) => req.user.role;
+
+// Label shown in place of someone who is CONNECTIONS_ONLY. Keeping the hop
+// in the path preserves the distance, which is not itself private; only the
+// identity is withheld.
+const REDACTED_NODE = { id: null, name: 'A shared connection', redacted: true };
+
+/**
+ * Replaces hidden people in a path with an anonymous placeholder.
+ * The endpoints are left alone: the requester is one of them, and the other
+ * is someone they explicitly asked about and is checked separately.
+ */
+function redactPath(path, hidden) {
+  if (!hidden.size) return path;
+  return (path || []).map((node, i) => (
+    i > 0 && i < path.length - 1 && hidden.has(node.id) ? REDACTED_NODE : node
+  ));
+}
 
 function assertGraph() {
   if (!graph.isGraphEnabled()) {
@@ -56,9 +75,15 @@ const getMutual = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
   const mutuals = await graph.getMutualConnections(me, userId, limit);
 
+  // A mutual connection is normally someone the viewer already knows, and so
+  // visible to them; this drops the rest, which the graph can still return
+  // when the mirror is ahead of a privacy change.
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  const visible = mutuals.filter((u) => !hidden.has(u.id));
+
   res.json({
     success: true,
-    data: { count: mutuals.length, mutuals },
+    data: { count: visible.length, mutuals: visible },
   });
 });
 
@@ -72,7 +97,13 @@ const getPath = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const maxHops = Math.min(10, Math.max(1, parseInt(req.query.maxHops, 10) || 6));
 
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  if (hidden.has(userId)) {
+    throw new AppError('This profile is only visible to connections', 404, 'PROFILE_NOT_FOUND');
+  }
+
   const result = await graph.getShortestPath(me, userId, maxHops);
+  result.path = redactPath(result.path, hidden);
   res.json({ success: true, data: result });
 });
 
@@ -89,7 +120,13 @@ const getSuggestions = asyncHandler(async (req, res) => {
     : null;
 
   const suggestions = await graph.getSuggestions(me, { limit, role });
-  res.json({ success: true, data: { suggestions } });
+
+  // Suggesting someone who restricted their profile would expose both their
+  // existence and the names they are reachable through.
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  const visible = suggestions.filter((s) => !hidden.has(s.user?.id));
+
+  res.json({ success: true, data: { suggestions: visible } });
 });
 
 /**
@@ -109,7 +146,14 @@ const getReachableAtCompany = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 25));
 
   const people = await graph.getReachableAtCompany(me, company.trim(), { maxHops, limit });
-  res.json({ success: true, data: { company: company.trim(), count: people.length, people } });
+
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  const visible = people.filter((p) => !hidden.has(p.user?.id));
+
+  res.json({
+    success: true,
+    data: { company: company.trim(), count: visible.length, people: visible },
+  });
 });
 
 /**
@@ -124,9 +168,21 @@ const getNetwork = asyncHandler(async (req, res) => {
 
   const { nodes, edges } = await graph.getNetworkGraph(me, { depth, limit });
 
+  // Remove hidden people and any edge that touched them, so the drawing
+  // cannot imply a node that is not in the list.
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  const visibleNodes = nodes.filter((nd) => !hidden.has(nd.id));
+  const visibleEdges = edges.filter((e) => !hidden.has(e.source) && !hidden.has(e.target));
+
   res.json({
     success: true,
-    data: { rootId: me, depth, nodes, edges, counts: { nodes: nodes.length, edges: edges.length } },
+    data: {
+      rootId: me,
+      depth,
+      nodes: visibleNodes,
+      edges: visibleEdges,
+      counts: { nodes: visibleNodes.length, edges: visibleEdges.length },
+    },
   });
 });
 
@@ -153,7 +209,16 @@ const getMutualCounts = asyncHandler(async (req, res) => {
     return res.json({ success: true, data: { counts: {}, graphEnabled: false } });
   }
 
-  const counts = await graph.getMutualCounts(me, userIds);
+  // Drop hidden people before querying: a count keyed by their id would
+  // confirm they exist, which is what CONNECTIONS_ONLY is meant to prevent.
+  const hidden = await getHiddenUserIds(me, requesterRole(req));
+  const allowedIds = userIds.filter((id) => !hidden.has(id));
+
+  if (!allowedIds.length) {
+    return res.json({ success: true, data: { counts: {}, graphEnabled: true } });
+  }
+
+  const counts = await graph.getMutualCounts(me, allowedIds);
   res.json({ success: true, data: { counts, graphEnabled: true } });
 });
 
