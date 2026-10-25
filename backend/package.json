@@ -12,6 +12,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:seed:content": "node prisma/seed-content.js",
+    "db:seed:feed": "node prisma/seed-feed.js",
     "logs": "node scripts/logs.js",
     "db:seed:connections": "node prisma/seed-connections.js",
     "graph:sync": "node scripts/graphSync.js",
