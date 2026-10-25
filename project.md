@@ -293,6 +293,7 @@ Landing page content:
 ```text
 /dashboard
 /discover
+/connect
 /search
 /profile
 /profile/:userId
@@ -340,6 +341,16 @@ Landing page content:
 - Filters: role (student/alumni), department (examples IT, CSE, ECE), company (examples Amazon, Microsoft, Google), skills (examples Java, React, Python, AWS).
 - Result cards show name, role/employer, skills, mutual count, View Profile, and Connect.
 - Basic user/profile information is associated with PostgreSQL and graph/mutual information with Neo4j in the frontend planning notes.
+
+#### People like you `/connect`
+
+- Peer recommendations: people to connect or collaborate with, ranked by shared skills (weighted by proficiency), shared career interests, mutual connections, department, graduation batch, and company (alumni).
+- Students see other students. Alumni see alumni and students, with an Everyone / Alumni / Students toggle.
+- Filters: interest search, department, company (alumni only), and a single skill picked from the curated skills list.
+- Each card explains why the person is suggested and has Connect and View Profile.
+- Excludes the requester, existing connections, pending requests, unverified alumni, and anyone whose profile is limited to connections. Mutual-connection counts need Neo4j; without it the page still works on profile signals alone.
+- API: `GET /api/match/peers` (`limit`, `role`, `skillId`, `departmentId`, `companyId`, `interest`). Admins receive 403.
+- The dashboard sidebar shows the top three matches with a link to this page.
 
 #### Public profile `/profile/:userId`
 

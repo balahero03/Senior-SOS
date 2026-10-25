@@ -11,7 +11,7 @@ import {
   addComment,
   deletePost,
 } from '../../community/api';
-import { getDiscoverUsers, sendConnectionRequest } from '../../discover/api';
+import { getDiscoverUsers, getPeerMatches, sendConnectionRequest } from '../../discover/api';
 
 // ─── Format Time Helper ───────────────────────────────────────────────────────
 function formatPostTime(dateString) {
@@ -27,6 +27,60 @@ function formatPostTime(dateString) {
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `${diffInDays}d ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── People Like You (sidebar preview) ────────────────────────────────────────
+// Top few peer matches with the strongest reason for each; the full, filterable
+// list lives at /connect. Renders nothing while loading or when there is no one
+// to suggest, so an empty account does not get a hollow card.
+function PeersPreview() {
+  const [peers, setPeers] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPeerMatches({ limit: 3 })
+      .then((res) => { if (!cancelled) setPeers(res?.recommendations || []); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  if (peers.length === 0) return null;
+
+  return (
+    <div className="feed-card p-4">
+      <h3 className="font-bold text-slate-900 text-sm mb-3">People like you</h3>
+      <div className="space-y-3.5">
+        {peers.map(({ user: peer, score, reasons }) => (
+          <div key={peer.id} className="flex items-start gap-3">
+            <Link to={`/profile/${peer.id}`} className="shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[#0a66c2] text-white flex items-center justify-center font-bold text-xs hover:ring-2 hover:ring-blue-300 transition-all">
+                {(peer.name || '?').charAt(0).toUpperCase()}
+              </div>
+            </Link>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <Link
+                  to={`/profile/${peer.id}`}
+                  className="font-bold text-slate-900 text-xs hover:text-[#0a66c2] transition-colors truncate"
+                >
+                  {peer.name}
+                </Link>
+                <span className="text-[11px] font-black text-[#0a66c2] shrink-0">{score}%</span>
+              </div>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                {reasons[0]?.label || (peer.role === 'ALUMNI' ? 'Alumnus' : 'Student')}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+        <Link to="/connect" className="text-xs font-bold text-[#0a66c2] hover:underline">
+          See all matches →
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 // ─── LinkedIn-style Post Card ─────────────────────────────────────────────────
@@ -917,6 +971,8 @@ export default function DashboardPage() {
                 </p>
               </Link>
             )}
+
+            {(user?.role === 'STUDENT' || isAlumni) && <PeersPreview />}
 
             {recommendedAlumni.length > 0 && (
               <div className="feed-card p-4">

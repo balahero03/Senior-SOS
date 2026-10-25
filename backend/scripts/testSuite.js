@@ -378,6 +378,78 @@ async function run() {
       assert(sendMsgRes.status === 201, 'POST /api/messages sends chat message successfully (201)');
     }
 
+    // ─── 11. Peer Recommendations (read-only) ─────────────────────────────────
+    console.log('\n📌 Testing Peer Recommendations...');
+    const peerIds = (res) => (res.data?.data?.recommendations || []).map((r) => r.user.id);
+    const peerRoles = (res) => new Set((res.data?.data?.recommendations || []).map((r) => r.user.role));
+
+    const peersAnon = await request('/api/match/peers');
+    assert(peersAnon.status === 401, 'GET /api/match/peers requires authentication (401)');
+
+    const sPeers = await request('/api/match/peers?limit=50', { token: studentToken });
+    assert(sPeers.status === 200, 'Student GET /api/match/peers returns 200');
+    assert(
+      peerRoles(sPeers).size > 0 && [...peerRoles(sPeers)].every((r) => r === 'STUDENT'),
+      'Student peers are all students',
+    );
+    assert(!peerIds(sPeers).includes(studentUser?.id), 'Student peers never include the requester');
+
+    const sWide = await request('/api/match/peers?limit=50&role=ALUMNI', { token: studentToken });
+    assert(
+      sWide.status === 200 && [...peerRoles(sWide)].every((r) => r === 'STUDENT'),
+      'Student cannot widen peers to alumni via role=ALUMNI',
+    );
+
+    const aAll = await request('/api/match/peers?limit=50&role=ALL', { token: alumniToken });
+    assert(aAll.status === 200, 'Alumni GET /api/match/peers returns 200');
+    assert(
+      peerRoles(aAll).has('ALUMNI') && peerRoles(aAll).has('STUDENT'),
+      'Alumni peers (ALL) include both alumni and students',
+    );
+    assert(!peerIds(aAll).includes(alumniUser?.id), 'Alumni peers never include the requester');
+
+    const aOnlyAlumni = await request('/api/match/peers?limit=50&role=ALUMNI', { token: alumniToken });
+    assert([...peerRoles(aOnlyAlumni)].every((r) => r === 'ALUMNI'), 'Alumni role=ALUMNI returns only alumni');
+    const aOnlyStudents = await request('/api/match/peers?limit=50&role=STUDENT', { token: alumniToken });
+    assert([...peerRoles(aOnlyStudents)].every((r) => r === 'STUDENT'), 'Alumni role=STUDENT returns only students');
+
+    const ranked = sPeers.data?.data?.recommendations || [];
+    assert(
+      ranked.every((r, i) => i === 0 || ranked[i - 1].score >= r.score),
+      'Peers are ranked by descending score',
+    );
+    assert(
+      ranked.every((r) => r.score >= 0 && r.score <= 100 && Array.isArray(r.reasons)),
+      'Peer scores are within 0-100 and carry reasons',
+    );
+
+    // Nobody the requester is already connected to (or has a pending request with) is suggested.
+    const sId = studentUser?.id;
+    const linked = await prisma.connection.findMany({
+      where: { OR: [{ userA: sId }, { userB: sId }] },
+      select: { userA: true, userB: true },
+    });
+    const linkedIds = new Set(linked.map((c) => (c.userA === sId ? c.userB : c.userA)));
+    assert(
+      !peerIds(sPeers).some((id) => linkedIds.has(id)),
+      'Peers exclude existing connections',
+    );
+
+    const badRole = await request('/api/match/peers?role=BOGUS', { token: alumniToken });
+    assert(badRole.status === 400, 'Peers rejects an unknown role (400)');
+    const badSkill = await request('/api/match/peers?skillId=not-a-uuid', { token: alumniToken });
+    assert(badSkill.status === 400, 'Peers rejects a malformed skillId (400)');
+
+    const pySkill = (await request('/api/skills?q=python', { token: alumniToken })).data?.data?.skills?.[0];
+    if (pySkill) {
+      const bySkill = await request(`/api/match/peers?limit=50&skillId=${pySkill.id}`, { token: alumniToken });
+      assert(
+        bySkill.status === 200 && (bySkill.data?.data?.recommendations || []).every((r) => r.user.skills.includes(pySkill.name)),
+        'Peers skill filter returns only people with that skill',
+      );
+    }
+    // ─── end peers ─────────────────────────────────────────────────────────────
+
     console.log('\n========================================');
     console.log(`🎉 TEST SUMMARY: ${passedTests} PASSED, ${failedTests} FAILED`);
     console.log('========================================\n');
