@@ -433,4 +433,4 @@ async function recommendAlumni(studentId, filters = {}) {
   };
 }
 
-module.exports = { recommendAlumni, scoreAlumnus, WEIGHTS, MAX_SCORE };
+module.exports = { recommendAlumni, scoreAlumnus, tokenise, WEIGHTS, MAX_SCORE };
