@@ -1,0 +1,29 @@
+# k8s/base/configmap.yaml
+# Non-secret settings for the backend. Anything sensitive (database URLs, JWT
+# secrets, Neo4j credentials) is NOT here: deploy.ps1 builds the Secret
+# "seniorsos-secrets" from backend/.env at deploy time, so no credential is ever
+# written to this repository.
+#
+# Values here override the same keys from backend/.env, because they describe
+# how the app runs inside the cluster rather than on a developer's machine.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seniorsos-config
+  labels:
+    app.kubernetes.io/part-of: seniorsos
+data:
+  NODE_ENV: "production"
+  PORT: "5000"
+  # The browser reaches the app through the frontend Service at this address.
+  CLIENT_ORIGIN: "http://localhost:8080"
+  # Redis runs in this namespace; "redis" is its Service name.
+  REDIS_URL: "redis://redis:6379"
+  # Everything starts at once in a cluster, so give Redis up to 30 s to come up
+  # before the backend decides whether to enable the Socket.IO Redis adapter.
+  REDIS_STARTUP_WAIT_MS: "30000"
+  # One reverse proxy (the frontend's nginx) sits in front of the backend, so
+  # rate limits apply to real client addresses and not to the proxy.
+  TRUST_PROXY: "1"
+  # Transcript logging records request bodies verbatim; never in a cluster.
+  API_TRANSCRIPT_LOG: "false"

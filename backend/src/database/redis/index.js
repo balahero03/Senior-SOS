@@ -79,8 +79,20 @@ async function connectRedis() {
   try {
     await client.connect();
   } catch (err) {
-    // Not fatal: ioredis keeps retrying in the background.
-    console.error(`❌ [redis] Initial connection failed (continuing without it): ${err.message}`);
+    // ioredis keeps retrying in the background. If asked to, give it a bounded
+    // amount of time to come up before start-up carries on without Redis.
+    const waitMs = config.redis.startupWaitMs;
+    if (waitMs > 0) {
+      console.warn(`⏳ [redis] Not reachable yet; waiting up to ${Math.round(waitMs / 1000)}s for it...`);
+      const deadline = Date.now() + waitMs;
+      while (!ready && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+    // Not fatal either way: without Redis the app falls back to in-process behaviour.
+    if (!ready) {
+      console.error(`❌ [redis] Initial connection failed (continuing without it): ${err.message}`);
+    }
   }
 }
 

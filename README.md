@@ -155,6 +155,21 @@ Frontend will be live at: `http://localhost:5173`
 
 ---
 
+### Method 3: Run on Kubernetes (local cluster)
+
+Runs 2+ backend copies, 2+ frontend copies and Redis on Docker Desktop's Kubernetes,
+using the same cloud databases as above (they are only connected to, never modified).
+Enable *Settings > Kubernetes > Enable Kubernetes* in Docker Desktop once, then:
+
+```powershell
+.\k8s\deploy.ps1 -Build    # build the images and deploy
+.\k8serify.ps1           # check it is healthy
+# open http://localhost:8080
+.\k8s	eardown.ps1         # stop it (cloud data untouched)
+```
+
+Details, safety notes and troubleshooting are in [`k8s/README.md`](k8s/README.md).
+
 ##  Testing & Quality Assurance
 
 1. **Unit & Validation Tests:** Every registration, login, and profile update payload is validated using strict **Zod** schemas before hitting the database.
@@ -176,9 +191,9 @@ Right now, students can search for alumni. With **Neo4j**, SeniorSOS will answer
 - Intelligent mentor recommendations based on shared departments, clubs, and skills.
 
 ### 2. Local Kubernetes (K8s) Cluster Deployment
-To demonstrate production-grade deployment skills, we are building a Kubernetes setup using **Kind / Minikube**:
-- **Stateless Application Tier:** Deploying frontend and backend as scalable K8s `Deployments` behind an Ingress controller.
-- **Stateful Database Tier:** Running PostgreSQL, MongoDB, and Neo4j as K8s `StatefulSets` backed by `PersistentVolumeClaims (PVCs)`.
+To demonstrate production-grade deployment skills, SeniorSOS runs on a local Kubernetes cluster (Docker Desktop):
+- **Stateless Application Tier:** Implemented. The frontend (nginx) and backend run as K8s `Deployments` with health probes, rolling updates and rollbacks, a CPU-based autoscaler (backend 2 to 4 copies), and disruption budgets. See [`k8s/README.md`](k8s/README.md).
+- **Data tier:** PostgreSQL (Neon), MongoDB (Atlas) and Neo4j (Aura) stay as external managed cloud databases, the usual production choice; the cluster only connects to them. Running them as `StatefulSets` with `PersistentVolumeClaims` remains an option for a fully self-hosted setup.
 - **Redis Pub/Sub Scaling:** Implemented. Redis (optional, `REDIS_URL`) powers the Socket.IO adapter so multiple backend replicas can broadcast real-time messages to each other, plus presence, rate limiting and caching. See `project.md`.
 
 

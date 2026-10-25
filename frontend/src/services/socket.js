@@ -21,7 +21,12 @@ export function connectSocket() {
 
   socket = io(BACKEND_URL, {
     withCredentials: true,     // send httpOnly cookies
-    transports: ['websocket', 'polling'],
+    // WebSocket only. Socket.IO's long-polling fallback sends several HTTP
+    // requests that must all reach the SAME backend copy, which cannot be
+    // guaranteed once more than one backend replica runs behind a load balancer
+    // (Kubernetes). A WebSocket is one connection, so it works with any number
+    // of replicas, and every current browser supports it.
+    transports: ['websocket'],
     autoConnect: true,
   });
 

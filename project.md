@@ -700,6 +700,18 @@ volumes:
   mongodb_data:
 ```
 
+### Kubernetes: what is implemented
+
+The local cluster (Docker Desktop) runs the **application tier and Redis**; the data tier is external:
+
+- `frontend` (nginx, 2 to 3 copies) serves the React build and proxies `/api` and `/socket.io` to `backend`; it is exposed at `http://localhost:8080` through a LoadBalancer Service.
+- `backend` (2 to 4 copies, CPU autoscaler at 70% of a 200m request) is the single modular-monolith image. It uses the Redis Socket.IO adapter, so realtime works across copies; the frontend uses WebSocket only for the same reason.
+- `redis` is a single pod (cache, rate limits, presence); losing it degrades the app gracefully rather than breaking it.
+- PostgreSQL (Neon), MongoDB (Atlas) and Neo4j (Aura) are **external managed databases**. The cluster only connects to them using a Secret built from `backend/.env` at deploy time; there is no migration or seed job in the cluster.
+- Operations: rolling updates with no unavailable copy, `rollout undo`, PodDisruptionBudgets, metrics-server for autoscaling, and `deploy.ps1` / `verify.ps1` / `teardown.ps1` (see `k8s/README.md`).
+
+The topology below is the original planning note, which also considered running the databases in the cluster.
+
 ### Kubernetes topology
 
 For the local project/demo, the notes propose running frontend, backend, PostgreSQL, MongoDB, Neo4j, and later Redis in Kubernetes. Ingress routes browser traffic to frontend and `/api` to backend. A backend Service can route to multiple backend replicas; databases use persistent volumes.

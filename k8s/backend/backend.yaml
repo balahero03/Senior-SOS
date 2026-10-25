@@ -1,0 +1,161 @@
+# k8s/backend/backend.yaml
+# The Express + Socket.IO API. Stateless: every copy is identical, sessions are
+# JWT cookies, and realtime events, presence, rate limits and caches are shared
+# through Redis, so any number of replicas can run side by side.
+#
+# It connects to the EXTERNAL cloud databases (Neon PostgreSQL, Atlas MongoDB,
+# Neo4j Aura) using the credentials in the "seniorsos-secrets" Secret. Nothing
+# here creates, migrates or seeds a database.
+#
+# The replica count is owned by the HorizontalPodAutoscaler below (2 to 4 copies),
+# so it is deliberately not set here: re-applying this file must not undo a
+# scale-up the autoscaler made.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+    app.kubernetes.io/part-of: seniorsos
+spec:
+  revisionHistoryLimit: 5     # keeps the last 5 versions so `rollout undo` works
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0   # never drop below the desired number of ready copies
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: backend
+          image: seniorsos-backend:local
+          # The image is built locally (docker compose -f docker-compose.app.yml build),
+          # so never try to pull it from a registry.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+          envFrom:
+            # Secret first, ConfigMap last: when a key is in both, the last wins,
+            # so the in-cluster values in the ConfigMap take precedence.
+            - secretRef:
+                name: seniorsos-secrets
+            - configMapRef:
+                name: seniorsos-config
+          lifecycle:
+            preStop:
+              exec:
+                # Keep serving for a few seconds after the pod is taken out of the
+                # Service, so requests already on their way are not dropped; only
+                # then does the app receive SIGTERM and shut down gracefully.
+                command: ["sleep", "8"]
+          # /health answers as soon as the HTTP server is up and does not depend
+          # on any database, so a slow cloud database never restarts the pods.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 3
+            failureThreshold: 40       # up to ~2 minutes to connect to the databases
+          # Node runs on one thread, so under heavy CPU load (password hashing)
+          # a health check can be answered slowly. The timeouts leave room for
+          # that: a busy pod must not be mistaken for a dead one and restarted,
+          # which would only push more load onto the others.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6        # about 2 minutes of failures before a restart
+          resources:
+            # The autoscaler measures CPU as a share of this request.
+            requests:
+              cpu: 200m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 384Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000          # the image's "node" user
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    app: backend
+    app.kubernetes.io/part-of: seniorsos
+spec:
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http
+---
+# Scales the backend between 2 and 4 copies on CPU. Needs the metrics-server
+# add-on (k8s/addons/metrics-server.yaml), which deploy.ps1 installs.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/part-of: seniorsos
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+    scaleDown:
+      # Wait before shrinking so a brief lull does not drop capacity that is
+      # needed again a minute later.
+      stabilizationWindowSeconds: 120
+---
+# During a node drain or upgrade, Kubernetes may only evict pods while at least
+# one backend copy stays up.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/part-of: seniorsos
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: backend

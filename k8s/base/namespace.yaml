@@ -1,0 +1,10 @@
+# k8s/base/namespace.yaml
+# Everything for SeniorSOS lives in one namespace, so it can be inspected or
+# removed as a unit (see teardown.ps1) without touching anything else on the
+# cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: seniorsos
+  labels:
+    app.kubernetes.io/part-of: seniorsos

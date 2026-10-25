@@ -89,6 +89,12 @@ const config = {
     url: optional('REDIS_URL', ''),
     // Prefix for every key, so the instance can be shared safely.
     keyPrefix: optional('REDIS_KEY_PREFIX', 'sos:'),
+    // How long start-up waits for Redis before carrying on without it. The
+    // Socket.IO adapter can only be attached at start-up, so when every service
+    // starts at once (Kubernetes, Compose) a short wait stops the app from
+    // committing to single-instance realtime just because Redis was a few
+    // seconds behind. 0 (the default) never waits, which suits local development.
+    startupWaitMs: Math.max(0, parseInt(optional('REDIS_STARTUP_WAIT_MS', '0'), 10) || 0),
     get enabled() {
       return Boolean(this.url);
     },

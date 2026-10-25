@@ -1,0 +1,18 @@
+# k8s/kustomization.yaml
+# Applies the whole stack in the "seniorsos" namespace:
+#   kubectl apply -k k8s/
+# (deploy.ps1 does this, after creating the Secret.)
+#
+# This only deploys application pods and Redis. It never runs a migration, seed
+# or any other job against PostgreSQL, MongoDB or Neo4j: those are external
+# cloud databases that the backend merely connects to.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: seniorsos
+
+resources:
+  - base/configmap.yaml
+  - redis/redis.yaml
+  - backend/backend.yaml
+  - frontend/frontend.yaml
