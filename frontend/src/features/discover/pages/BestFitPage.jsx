@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
+import SkillFilter from '../components/SkillFilter';
 import useAuthStore from '../../../stores/authStore';
 import {
   getAlumniMatches,
@@ -145,6 +146,7 @@ export default function BestFitPage() {
   const [submittedInterest, setSubmittedInterest] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [skillFilter, setSkillFilter] = useState(null);
 
   const [departments, setDepartments] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -168,6 +170,7 @@ export default function BestFitPage() {
       if (submittedInterest.trim()) params.interest = submittedInterest.trim();
       if (departmentId) params.departmentId = departmentId;
       if (companyId) params.companyId = companyId;
+      if (skillFilter) params.skillId = skillFilter.id;
       setData(await getAlumniMatches(params));
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Could not load recommendations.');
@@ -175,7 +178,7 @@ export default function BestFitPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [submittedInterest, departmentId, companyId]);
+  }, [submittedInterest, departmentId, companyId, skillFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -298,9 +301,10 @@ export default function BestFitPage() {
             <option value="">Any company</option>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          {(departmentId || companyId) && (
+          <SkillFilter value={skillFilter} onChange={setSkillFilter} />
+          {(departmentId || companyId || skillFilter) && (
             <button
-              onClick={() => { setDepartmentId(''); setCompanyId(''); }}
+              onClick={() => { setDepartmentId(''); setCompanyId(''); setSkillFilter(null); }}
               className="text-xs font-semibold text-slate-500 hover:text-rose-600"
             >
               Clear filters
