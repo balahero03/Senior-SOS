@@ -7,7 +7,31 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../../components/layout/Navbar';
 import useAuthStore from '../../../stores/authStore';
-import { getPeerMatches } from '../api';
+import SkillFilter from '../components/SkillFilter';
+import {
+  getPeerMatches,
+  getDepartments,
+  getCompanies,
+  sendConnectionRequest,
+} from '../api';
+
+// Alumni can choose who to look at; students only ever see other students.
+const ROLE_TABS = [
+  { value: 'ALL', label: 'Everyone' },
+  { value: 'ALUMNI', label: 'Alumni' },
+  { value: 'STUDENT', label: 'Students' },
+];
+
+const QUICK_INTERESTS = [
+  'Backend Development',
+  'Frontend Development',
+  'Machine Learning',
+  'Cloud and DevOps',
+  'System Design',
+  'Embedded Systems',
+  'Product Management',
+  'Research',
+];
 
 const REASON_STYLE = {
   skills: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -30,12 +54,13 @@ function scoreTone(score) {
   return { ring: 'text-slate-500', bar: 'bg-slate-400', label: 'Possible match' };
 }
 
-function PeerCard({ item }) {
+function PeerCard({ item, onConnect, connectingId }) {
   const { user: peer, score, reasons } = item;
   const tone = scoreTone(score);
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? reasons : reasons.slice(0, 3);
   const isAlumni = peer.role === 'ALUMNI';
+  const busy = connectingId === peer.id;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -101,6 +126,13 @@ function PeerCard({ item }) {
           </div>
 
           <div className="mt-4 flex items-center gap-2">
+            <button
+              onClick={() => onConnect(peer.id)}
+              disabled={busy}
+              className="px-4 py-1.5 rounded-xl bg-[#0a66c2] text-white text-xs font-bold hover:bg-[#004182] disabled:opacity-50 transition-colors"
+            >
+              {busy ? 'Sending…' : 'Connect'}
+            </button>
             <Link
               to={`/profile/${peer.id}`}
               className="px-4 py-1.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
@@ -118,28 +150,85 @@ export default function PeersPage() {
   const { user } = useAuthStore();
   const isAlumni = user?.role === 'ALUMNI';
 
+  const [interest, setInterest] = useState('');
+  const [submittedInterest, setSubmittedInterest] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [departmentId, setDepartmentId] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [skillFilter, setSkillFilter] = useState(null);
+
+  const [departments, setDepartments] = useState([]);
+  const [companies, setCompanies] = useState([]);
+
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [connectingId, setConnectingId] = useState(null);
+  const [sentTo, setSentTo] = useState([]);
+
+  useEffect(() => {
+    getDepartments().then(setDepartments).catch(() => {});
+    getCompanies().then(setCompanies).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
-      setData(await getPeerMatches({ limit: 20 }));
+      const params = { limit: 20 };
+      if (isAlumni && roleFilter !== 'ALL') params.role = roleFilter;
+      if (submittedInterest.trim()) params.interest = submittedInterest.trim();
+      if (departmentId) params.departmentId = departmentId;
+      if (companyId) params.companyId = companyId;
+      if (skillFilter) params.skillId = skillFilter.id;
+      setData(await getPeerMatches(params));
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Could not load recommendations.');
       setData(null);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAlumni, roleFilter, submittedInterest, departmentId, companyId, skillFilter]);
 
   useEffect(() => {
     if (user && user.role !== 'ADMIN') load();
   }, [load, user]);
 
-  const results = data?.recommendations || [];
+  const handleConnect = async (id) => {
+    setConnectingId(id);
+    try {
+      await sendConnectionRequest(id);
+      setSentTo((prev) => [...prev, id]);
+    } catch (err) {
+      setError(err.response?.data?.error?.message || 'Could not send the request.');
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    setSubmittedInterest(interest);
+  };
+
+  const pickQuick = (value) => {
+    setInterest(value);
+    setSubmittedInterest(value);
+  };
+
+  const clearSearch = () => {
+    setInterest('');
+    setSubmittedInterest('');
+  };
+
+  const clearFilters = () => {
+    setDepartmentId('');
+    setCompanyId('');
+    setSkillFilter(null);
+  };
+
+  const results = (data?.recommendations || []).filter((r) => !sentTo.includes(r.user.id));
+  const hasFilters = Boolean(departmentId || companyId || skillFilter);
 
   // Admins moderate the platform and get a 403 from the API; explain instead.
   if (user && user.role === 'ADMIN') {
@@ -177,6 +266,95 @@ export default function PeersPage() {
               : 'Students who share your skills, interests, department and connections.'}{' '}
             Every suggestion explains why it is here.
           </p>
+
+          <form onSubmit={submit} className="mt-4 flex gap-2">
+            <input
+              type="text"
+              value={interest}
+              onChange={(e) => setInterest(e.target.value)}
+              placeholder="What do you want to work on? e.g. machine learning, open source, backend"
+              className="flex-1 min-w-0 px-4 py-2.5 rounded-xl bg-white/95 text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-white/50"
+            />
+            <button type="submit" className="px-5 py-2.5 rounded-xl bg-white text-[#0a66c2] text-sm font-bold hover:bg-blue-50 transition-colors whitespace-nowrap">
+              Find
+            </button>
+          </form>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {QUICK_INTERESTS.map((q) => (
+              <button
+                key={q}
+                onClick={() => pickQuick(q)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
+                  submittedInterest === q
+                    ? 'bg-white text-[#0a66c2] border-white'
+                    : 'bg-white/10 text-blue-50 border-white/25 hover:bg-white/20'
+                }`}
+              >
+                {q}
+              </button>
+            ))}
+            {submittedInterest && (
+              <button
+                onClick={clearSearch}
+                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-blue-100 hover:text-white underline"
+              >
+                clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-sm mb-4 flex flex-wrap items-center gap-2">
+          {isAlumni && (
+            <div className="flex rounded-xl bg-slate-100 p-0.5 mr-1" role="tablist" aria-label="Show">
+              {ROLE_TABS.map((t) => (
+                <button
+                  key={t.value}
+                  role="tab"
+                  aria-selected={roleFilter === t.value}
+                  onClick={() => setRoleFilter(t.value)}
+                  className={`px-3 py-1 rounded-[10px] text-xs font-bold transition-colors ${
+                    roleFilter === t.value
+                      ? 'bg-white text-[#0a66c2] shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mr-1">Narrow by</span>
+          <select
+            value={departmentId}
+            onChange={(e) => setDepartmentId(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option value="">Any department</option>
+            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          {isAlumni && (
+            <select
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+              title="Company applies to alumni only"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="">Any company</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          <SkillFilter value={skillFilter} onChange={setSkillFilter} />
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs font-semibold text-slate-500 hover:text-rose-600"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         {error && (
@@ -215,25 +393,49 @@ export default function PeersPage() {
           !error && (
             <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-sm">
               <div className="w-14 h-14 mx-auto rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mb-4">🔍</div>
-              <h3 className="font-bold text-slate-800 text-sm">No recommendations yet</h3>
+              <h3 className="font-bold text-slate-800 text-sm">
+                {data?.searchApplied ? `No one matches "${submittedInterest}"` : 'No recommendations yet'}
+              </h3>
               <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                You may already be connected to everyone we would suggest. Adding more
-                skills and interests to your profile helps us find better matches.
+                {data?.searchApplied || hasFilters
+                  ? 'Try a broader term or remove a filter to see more people.'
+                  : 'You may already be connected to everyone we would suggest. Adding more skills and interests to your profile helps us find better matches.'}
               </p>
+              {(data?.searchApplied || hasFilters) && (
+                <button
+                  onClick={() => { clearSearch(); clearFilters(); }}
+                  className="mt-5 px-4 py-2 rounded-xl bg-[#0a66c2] text-white text-xs font-bold hover:bg-[#004182] transition-colors"
+                >
+                  Clear search and filters
+                </button>
+              )}
             </div>
           )
         ) : (
           <>
             <p className="text-xs text-slate-500 mb-3">
-              {results.length} {results.length === 1 ? 'person' : 'people'} matched to your profile
+              {results.length} {results.length === 1 ? 'person' : 'people'}
+              {submittedInterest ? ` for "${submittedInterest}"` : ' matched to your profile'}
               {data?.graphEnabled === false && ' · mutual connections unavailable'}
             </p>
             <div className="space-y-3">
               {results.map((item) => (
-                <PeerCard key={item.user.id} item={item} />
+                <PeerCard
+                  key={item.user.id}
+                  item={item}
+                  onConnect={handleConnect}
+                  connectingId={connectingId}
+                />
               ))}
             </div>
           </>
+        )}
+
+        {sentTo.length > 0 && (
+          <p className="mt-4 text-xs text-emerald-700 font-semibold text-center">
+            {sentTo.length} connection {sentTo.length === 1 ? 'request' : 'requests'} sent.{' '}
+            <Link to="/network" className="underline">View your network</Link>
+          </p>
         )}
       </main>
     </div>
