@@ -554,13 +554,18 @@ const getUsers = asyncHandler(async (req, res) => {
     alumniFilter.verificationStatus = 'APPROVED';
   }
 
-  // Text search on name or bio
-  if (q && q.trim()) {
-    const searchTerm = q.trim();
-    where.OR = [
-      { name: { contains: searchTerm, mode: 'insensitive' } },
-      { academicProfile: { bio: { contains: searchTerm, mode: 'insensitive' } } },
-    ];
+  // Text search on name, email or bio. Every word must match somewhere, so
+  // "aravind ku" and "kumar aravind" both find Aravind Kumar, and part of an
+  // email works too. Capped at 6 words so a long query stays cheap.
+  if (typeof q === 'string' && q.trim()) {
+    const words = q.trim().split(/\s+/).slice(0, 6);
+    where.AND = words.map((word) => ({
+      OR: [
+        { name: { contains: word, mode: 'insensitive' } },
+        { email: { contains: word, mode: 'insensitive' } },
+        { academicProfile: { bio: { contains: word, mode: 'insensitive' } } },
+      ],
+    }));
   }
 
   // Skill filter

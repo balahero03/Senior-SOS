@@ -12,6 +12,7 @@ import {
   sendMessage,
   getUsers,
 } from '../api';
+import { sendConnectionRequest } from '../../discover/api';
 import { connectSocket, getSocket } from '../../../services/socket';
 import usePresence, { describePresence } from '../../../hooks/usePresence';
 import PresenceDot from '../../../components/common/PresenceDot';
@@ -98,19 +99,28 @@ function MessageBubble({ msg, isOwn }) {
 
 // ─── User Showcase & New Conversation Modal ───────────────────────────────────
 
+// Connected people first: they are the only ones you can message right now.
+const connectedFirst = (a, b) => (b.connectionStatus === 'CONNECTED') - (a.connectionStatus === 'CONNECTED');
+
 function NewConversationModal({ onStart, onClose }) {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState(null);
+  const [connectingId, setConnectingId] = useState(null);
   const [error, setError] = useState('');
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await getUsers({ search, role: roleFilter });
+      // The API reads the search text from `q` (not `search`), and 'ALL' is not a role.
+      const data = await getUsers({
+        q: search.trim() || undefined,
+        role: roleFilter === 'ALL' ? undefined : roleFilter,
+        limit: 30,
+      });
       setUsers(data || []);
     } catch (err) {
       setError('Failed to load users list');
@@ -125,6 +135,21 @@ function NewConversationModal({ onStart, onClose }) {
     }, 250);
     return () => clearTimeout(timer);
   }, [fetchUsers]);
+
+  // Messaging needs an accepted connection, so for everyone else the action is
+  // to send a request. The chat opens once they accept.
+  const handleConnect = async (targetUserId) => {
+    setConnectingId(targetUserId);
+    setError('');
+    try {
+      await sendConnectionRequest(targetUserId);
+      setUsers((prev) => prev.map((u) => (u.id === targetUserId ? { ...u, connectionStatus: 'PENDING_SENT' } : u)));
+    } catch (err) {
+      setError(err?.response?.data?.error?.message || 'Could not send the connection request.');
+    } finally {
+      setConnectingId(null);
+    }
+  };
 
   const handleSelectUser = async (targetUserId) => {
     setStartingId(targetUserId);
@@ -145,7 +170,7 @@ function NewConversationModal({ onStart, onClose }) {
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Start a Conversation</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Select anyone in the SeniorSOS network to message</p>
+            <p className="text-xs text-slate-500 mt-0.5">You can message people once they accept your connection request</p>
           </div>
           <button 
             onClick={onClose} 
@@ -211,8 +236,10 @@ function NewConversationModal({ onStart, onClose }) {
               <p className="text-xs text-slate-500">Try searching with another name or filter.</p>
             </div>
           ) : (
-            users.map((u) => {
+            [...users].filter((u) => u.connectionStatus !== 'SELF').sort(connectedFirst).map((u) => {
               const isStarting = startingId === u.id;
+              const status = u.connectionStatus;
+              const canChat = status === 'CONNECTED';
               const isAlumni = u.role === 'ALUMNI';
               const isStudent = u.role === 'STUDENT';
 
@@ -229,8 +256,10 @@ function NewConversationModal({ onStart, onClose }) {
               return (
                 <div
                   key={u.id}
-                  onClick={() => !isStarting && handleSelectUser(u.id)}
-                  className="flex items-center justify-between p-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all cursor-pointer group shadow-sm hover:shadow"
+                  onClick={() => canChat && !isStarting && handleSelectUser(u.id)}
+                  className={`flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-100 transition-all group shadow-sm ${
+                    canChat ? 'hover:bg-slate-50 hover:border-blue-200 cursor-pointer hover:shadow' : 'cursor-default'
+                  }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar name={u.name} size="lg" />
@@ -247,19 +276,41 @@ function NewConversationModal({ onStart, onClose }) {
                     </div>
                   </div>
 
-                  <button
-                    disabled={isStarting}
-                    className="ml-3 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-all flex items-center gap-1 flex-shrink-0"
-                  >
-                    {isStarting ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Opening…
-                      </span>
-                    ) : (
-                      'Chat'
-                    )}
-                  </button>
+                  {canChat ? (
+                    <button
+                      disabled={isStarting}
+                      className="ml-3 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-all flex items-center gap-1 flex-shrink-0"
+                    >
+                      {isStarting ? (
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Opening…
+                        </span>
+                      ) : (
+                        'Chat'
+                      )}
+                    </button>
+                  ) : status === 'PENDING_SENT' ? (
+                    <span className="ml-3 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-semibold text-xs flex-shrink-0">
+                      Request sent
+                    </span>
+                  ) : status === 'PENDING_RECEIVED' ? (
+                    <a
+                      href="/network"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-3 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 font-semibold text-xs flex-shrink-0 hover:bg-amber-100 transition-colors"
+                    >
+                      Respond in My Network
+                    </a>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleConnect(u.id); }}
+                      disabled={connectingId === u.id}
+                      className="ml-3 px-3.5 py-1.5 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold text-xs flex-shrink-0 transition-colors disabled:opacity-50"
+                    >
+                      {connectingId === u.id ? 'Sending…' : '+ Connect'}
+                    </button>
+                  )}
                 </div>
               );
             })
@@ -279,6 +330,7 @@ export default function MessagesPage() {
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
   const [msgInput, setMsgInput] = useState('');
+  const [sendError, setSendError] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [sending, setSending] = useState(false);
@@ -350,6 +402,7 @@ export default function MessagesPage() {
     if (!msgInput.trim() || !activeConv || sending) return;
     const content = msgInput.trim();
     setMsgInput('');
+    setSendError('');
     setSending(true);
 
     // Optimistic update
@@ -367,9 +420,12 @@ export default function MessagesPage() {
       // Replace optimistic with real message
       setMessages(prev => prev.map(m => m._id === optimistic._id ? data.message : m));
       fetchConversations();
-    } catch {
-      // Remove optimistic on failure
+    } catch (err) {
+      // Remove optimistic on failure, keep what was typed, and say why it failed
+      // (for example the other person is no longer a connection).
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
+      setMsgInput(content);
+      setSendError(err?.response?.data?.error?.message || 'Message could not be sent. Please try again.');
     } finally {
       setSending(false);
     }
@@ -503,6 +559,12 @@ export default function MessagesPage() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              {sendError && (
+                <div className="px-4 py-2 bg-red-50 border-t border-red-200 text-xs font-medium text-red-700">
+                  {sendError}
+                </div>
+              )}
 
               {/* Input */}
               <form

@@ -105,6 +105,23 @@ async function sendMessage({ conversationId, senderId, content }) {
     throw new AppError('Message content cannot be empty', 400, 'VALIDATION_ERROR');
   }
 
+  // Messaging is mutual and consensual: it requires an accepted connection at
+  // the time of sending, not only when the conversation was created. Without
+  // this, two people who disconnect could keep texting in the old thread.
+  const otherId = conversation.participantIds.find((id) => id !== senderId);
+  const [userA, userB] = senderId < otherId ? [senderId, otherId] : [otherId, senderId];
+  const stillConnected = await prisma.connection.findUnique({
+    where: { userA_userB: { userA, userB } },
+    select: { userA: true },
+  });
+  if (!stillConnected) {
+    throw new AppError(
+      'You are no longer connected with this user. Send a new connection request to message them again.',
+      403,
+      'CONNECTION_REQUIRED',
+    );
+  }
+
   const message = await messagesRepo.createMessage({
     conversationId,
     senderId,
