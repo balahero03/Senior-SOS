@@ -137,6 +137,13 @@ try {
   Write-Host 'Waiting for databases to become ready...'
   Wait-ForDatabase 'postgres' @('pg_isready', '-U', 'seniorsos_user', '-d', 'seniorsos')
   Wait-ForDatabase 'mongodb' @('mongosh', '--quiet', '--eval', 'quit(db.adminCommand({ping: 1}).ok ? 0 : 1)')
+  # Redis only accelerates the app (cache, rate limiting), so it never blocks startup.
+  try {
+    Wait-ForDatabase 'redis' @('redis-cli', 'ping')
+  }
+  catch {
+    Write-Warning 'Redis did not become ready; continuing without it. Check: docker compose logs redis'
+  }
 
   Write-Host 'Generating Prisma client and applying database migrations...'
   Invoke-Npm $backendDir @('run', 'db:generate')
@@ -189,7 +196,7 @@ try {
 
   Write-Host 'Frontend: http://localhost:5173'
   Write-Host 'Backend:  http://localhost:5000'
-  Write-Host 'Databases: PostgreSQL :5433, MongoDB :27018'
+  Write-Host 'Databases: PostgreSQL :5433, MongoDB :27018, Redis :6380'
   Write-Host 'Press Ctrl+C to stop the frontend and backend.'
 
   while (($processes | Where-Object { -not $_.HasExited }).Count -eq $processes.Count) {

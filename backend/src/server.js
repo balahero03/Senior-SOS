@@ -17,6 +17,7 @@ const app = require('./app');
 const { connectPostgres, disconnectPostgres } = require('./database/postgres');
 const { connectMongoDB, disconnectMongoDB } = require('./database/mongodb');
 const { connectNeo4j, disconnectNeo4j } = require('./database/neo4j');
+const { connectRedis, disconnectRedis } = require('./database/redis');
 const { initSocket } = require('./realtime/socket');
 
 async function startServer() {
@@ -26,6 +27,8 @@ async function startServer() {
   // Graph is a derived view; a failure here logs and disables graph
   // features rather than preventing startup.
   await connectNeo4j();
+  // Redis is an accelerator only: unreachable or unset just means no caching.
+  await connectRedis();
 
   const server = app.listen(config.port, () => {
     console.log(`[server] SeniorSOS backend running on port ${config.port} (${config.env})`);
@@ -44,6 +47,7 @@ async function startServer() {
       await disconnectPostgres();
       await disconnectMongoDB();
       await disconnectNeo4j();
+      await disconnectRedis();
       console.log('[server] HTTP server closed. Exiting.');
       process.exit(0);
     });

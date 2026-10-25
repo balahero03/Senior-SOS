@@ -144,9 +144,21 @@ wait_for_mongodb() {
   return 1
 }
 
+wait_for_redis() {
+  for _ in {1..30}; do
+    if docker compose -f "$ROOT_DIR/docker-compose.yml" exec -T redis redis-cli ping >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 echo "Waiting for databases to become ready..."
 wait_for_postgres || fail "PostgreSQL did not become ready. Check: docker compose logs postgres"
 wait_for_mongodb || fail "MongoDB did not become ready. Check: docker compose logs mongodb"
+# Redis only accelerates the app (cache, rate limiting), so it never blocks startup.
+wait_for_redis || echo "Warning: Redis did not become ready; continuing without it. Check: docker compose logs redis"
 
 echo "Generating Prisma client and applying database migrations..."
 npm --prefix "$BACKEND_DIR" run db:generate
@@ -186,7 +198,7 @@ PIDS+=("$!")
 
 echo "Frontend: http://localhost:5173"
 echo "Backend:  http://localhost:5000"
-echo "Databases: PostgreSQL :5433, MongoDB :27018"
+echo "Databases: PostgreSQL :5433, MongoDB :27018, Redis :6380"
 echo "Press Ctrl+C to stop the frontend and backend."
 
 wait -n "${PIDS[@]}"

@@ -83,6 +83,17 @@ const config = {
     },
   },
 
+  redis: {
+    // Cache, rate limiting and realtime coordination. Empty url disables Redis
+    // entirely and the app runs without it, exactly as it does without Neo4j.
+    url: optional('REDIS_URL', ''),
+    // Prefix for every key, so the instance can be shared safely.
+    keyPrefix: optional('REDIS_KEY_PREFIX', 'sos:'),
+    get enabled() {
+      return Boolean(this.url);
+    },
+  },
+
   transcriptLog: {
     // Full request/response transcript to logs/api-<date>.txt.
     // Records bodies verbatim, including passwords and tokens, so it is

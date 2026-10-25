@@ -1,5 +1,5 @@
 # docker-compose.yml
-# Local development stack — starts the databases used by the current app.
+# Local development stack — starts the databases and cache used by the current app.
 # Start with: docker compose up -d
 
 services:
@@ -32,6 +32,22 @@ services:
       - mongodb_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: seniorsos-redis
+    restart: unless-stopped
+    # Cache and rate-limit counters only: nothing here is a source of truth, so
+    # no persistence. Every key carries a TTL, so evict only keys that have one.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru"]
+    ports:
+      # Keep the host's default Redis port available for other projects.
+      - "127.0.0.1:6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -35,6 +35,7 @@ const graphRoutes = require('../routes/graphRoutes');
 const matchRoutes = require('../routes/matchRoutes');
 const userController = require('../controllers/userController');
 const { requireAuth } = require('../middleware/auth.middleware');
+const { getRedisStatus } = require('../database/redis');
 
 // ─── Create app ───────────────────────────────────────────────────────────────
 
@@ -81,7 +82,13 @@ if (config.transcriptLog.enabled) {
 // ─── Health check ─────────────────────────────────────────────────────────────
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  // Redis is optional, so its state is informational: 'disabled', 'up' or 'down'
+  // never turns the overall status into a failure.
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: { redis: getRedisStatus() },
+  });
 });
 
 // ─── API routes ───────────────────────────────────────────────────────────────
