@@ -10,6 +10,7 @@ const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { createNotification } = require('../services/notificationService');
 const graph = require('../services/graphService');
+const matchCache = require('../services/matchCache');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,8 @@ const sendConnectionRequest = asyncHandler(async (req, res) => {
     },
   });
 
+  await matchCache.invalidateUsers(senderId, targetUserId);
+
   // Notify receiver of incoming connection request
   await createNotification({
     recipientId: targetUserId,
@@ -260,6 +263,8 @@ const respondToRequest = asyncHandler(async (req, res) => {
       data: { status: 'REJECTED' },
     });
 
+    await matchCache.invalidateUsers(connectionRequest.senderId, connectionRequest.receiverId);
+
     return res.json({
       success: true,
       data: {
@@ -291,6 +296,8 @@ const respondToRequest = asyncHandler(async (req, res) => {
 
     return { updatedRequest, connection };
   });
+
+  await matchCache.invalidateUsers(connectionRequest.senderId, connectionRequest.receiverId);
 
   // Mirror into Neo4j after the PostgreSQL transaction has committed.
   // The graph is derived data: a failure here must not fail the request or
@@ -357,6 +364,8 @@ const cancelConnectionRequest = asyncHandler(async (req, res) => {
     where: { id: requestId },
     data: { status: 'CANCELLED' },
   });
+
+  await matchCache.invalidateUsers(connectionRequest.senderId, connectionRequest.receiverId);
 
   res.json({
     success: true,
@@ -437,6 +446,8 @@ const removeConnection = asyncHandler(async (req, res) => {
       userA_userB: { userA, userB },
     },
   });
+
+  await matchCache.invalidateUsers(userA, userB);
 
   // Keep the graph in step. Derived data, so failures are logged only.
   if (graph.isGraphEnabled()) {

@@ -9,6 +9,7 @@ const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { searchSkills } = require('../shared/utils/skillSearch');
 const referenceCache = require('../services/referenceCache');
+const matchCache = require('../services/matchCache');
 const graph = require('../services/graphService');
 
 const PROFICIENCY_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
@@ -399,6 +400,9 @@ const updateProfile = asyncHandler(async (req, res) => {
       }
     }
   });
+
+  // Their skills, interests and company feed their own recommendations.
+  await matchCache.invalidateUsers(userId);
 
   // An alumnus may have just introduced a new company; drop the cached lists.
   if (typeof companyName === 'string' && companyName.trim()) {

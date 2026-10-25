@@ -12,6 +12,7 @@ const AppError = require('../shared/errors/AppError');
 const { createNotification } = require('../services/notificationService');
 const graph = require('../services/graphService');
 const referenceCache = require('../services/referenceCache');
+const matchCache = require('../services/matchCache');
 
 /**
  * GET /api/admin/stats
@@ -188,6 +189,9 @@ const updateVerificationStatus = asyncHandler(async (req, res) => {
     return { updatedProfile, auditLog };
   });
 
+  // Approving or rejecting changes who may be recommended to everyone.
+  await matchCache.invalidateAll();
+
   // Verification is the point at which an alumnus becomes recommendable, so
   // refresh the graph node with the company and designation the admin just
   // approved. Fetched with relations because the node stores the company
@@ -289,6 +293,9 @@ const updateUserStatus = asyncHandler(async (req, res) => {
 
     return { updatedUser, auditLog };
   });
+
+  // Suspending or reactivating changes who may be recommended to everyone.
+  await matchCache.invalidateAll();
 
   // Notify the user about their account status change
   await createNotification({

@@ -5,6 +5,7 @@
 
 const matchService = require('../services/matchService');
 const peerMatchService = require('../services/peerMatchService');
+const matchCache = require('../services/matchCache');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 
@@ -32,14 +33,18 @@ const getAlumniMatches = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 12));
   const { companyId, departmentId, skillId, interest } = req.query;
 
-  const result = await matchService.recommendAlumni(userId, {
+  const filters = {
     limit,
     companyId: companyId || undefined,
     departmentId: departmentId || undefined,
     skillId: skillId || undefined,
     interest: interest?.trim() || undefined,
-  });
+  };
+  const { value: result, source } = await matchCache.withMatchCache(
+    userId, 'alumni', filters, () => matchService.recommendAlumni(userId, filters),
+  );
 
+  res.set('X-Cache', source);
   res.json({ success: true, data: result });
 });
 
@@ -84,15 +89,19 @@ const getPeerMatches = asyncHandler(async (req, res) => {
     ? req.query.interest.trim().slice(0, 200)
     : '';
 
-  const result = await peerMatchService.recommendPeers(userId, viewerRole, {
+  const filters = {
     limit,
     role,
     skillId: optionalUuid(req.query.skillId, 'skillId'),
     departmentId: optionalUuid(req.query.departmentId, 'departmentId'),
     companyId: optionalUuid(req.query.companyId, 'companyId'),
     interest: interest || undefined,
-  });
+  };
+  const { value: result, source } = await matchCache.withMatchCache(
+    userId, 'peers', filters, () => peerMatchService.recommendPeers(userId, viewerRole, filters),
+  );
 
+  res.set('X-Cache', source);
   res.json({ success: true, data: result });
 });
 

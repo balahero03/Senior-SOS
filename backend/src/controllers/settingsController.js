@@ -7,6 +7,7 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const matchCache = require('../services/matchCache');
 
 // Valid profile visibility options enforced by database CHECK constraint
 const VALID_VISIBILITIES = ['COLLEGE', 'CONNECTIONS_ONLY'];
@@ -71,6 +72,10 @@ const updatePrivacySettings = asyncHandler(async (req, res) => {
       notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
     },
   });
+
+  // Visibility is a privacy boundary: a profile that just became private must
+  // disappear from everyone's cached recommendations now, not in a few minutes.
+  await matchCache.invalidateAll();
 
   res.json({
     success: true,
