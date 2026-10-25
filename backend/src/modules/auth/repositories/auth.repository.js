@@ -6,6 +6,7 @@
 'use strict';
 
 const { prisma } = require('../../../database/postgres');
+const referenceCache = require('../../../services/referenceCache');
 
 // ─── User queries ─────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ async function resolveDepartmentId(input) {
       name: input.trim(),
     },
   });
+  await referenceCache.invalidateDepartments();
 
   return newDept.id;
 }
@@ -193,11 +195,13 @@ async function createAlumni({
  */
 async function upsertCompany(name) {
   const nameKey = name.trim().toLowerCase();
-  return prisma.company.upsert({
+  const company = await prisma.company.upsert({
     where: { nameKey },
     update: {},       // Do not overwrite the existing canonical name
     create: { name: name.trim(), nameKey },
   });
+  await referenceCache.invalidateCompanies();
+  return company;
 }
 
 // ─── Refresh tokens ───────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { searchSkills } = require('../shared/utils/skillSearch');
+const referenceCache = require('../services/referenceCache');
 const graph = require('../services/graphService');
 
 const PROFICIENCY_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
@@ -21,17 +22,9 @@ const PROFILE_PRIVATE_MESSAGE = 'This profile is only visible to connections';
  * Returns all departments sorted alphabetically by code.
  */
 const getDepartments = asyncHandler(async (req, res) => {
-  const departments = await prisma.department.findMany({
-    select: {
-      id: true,
-      code: true,
-      name: true,
-    },
-    orderBy: {
-      code: 'asc',
-    },
-  });
+  const { value: departments, source } = await referenceCache.getDepartmentList();
 
+  res.set('X-Cache', source);
   res.json({
     success: true,
     data: { departments },
@@ -43,27 +36,10 @@ const getDepartments = asyncHandler(async (req, res) => {
  * Returns registered companies (id, name). Supports search query `?q=` filtering by name_key.
  */
 const getCompanies = asyncHandler(async (req, res) => {
-  const { q } = req.query;
-  const where = {};
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
+  const { value: companies, source } = await referenceCache.getCompanyList(q);
 
-  if (q && q.trim()) {
-    const searchKey = q.trim().toLowerCase();
-    where.nameKey = { contains: searchKey };
-  }
-
-  const companies = await prisma.company.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-      nameKey: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
-    take: 50,
-  });
-
+  res.set('X-Cache', source);
   res.json({
     success: true,
     data: { companies },
@@ -77,14 +53,12 @@ const getCompanies = asyncHandler(async (req, res) => {
 const getSkills = asyncHandler(async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
-  const allSkills = await prisma.skill.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
+  const { value: allSkills, source } = await referenceCache.getSkillList();
 
   // Ranked, alias- and punctuation-tolerant search ("python3", "nodejs", "k8s").
   const skills = q ? searchSkills(allSkills, q, 20) : allSkills.slice(0, 50);
 
+  res.set('X-Cache', source);
   res.json({
     success: true,
     data: { skills },
@@ -425,6 +399,11 @@ const updateProfile = asyncHandler(async (req, res) => {
       }
     }
   });
+
+  // An alumnus may have just introduced a new company; drop the cached lists.
+  if (typeof companyName === 'string' && companyName.trim()) {
+    await referenceCache.invalidateCompanies();
+  }
 
   // Fetch and return the updated profile
   const updatedUser = await prisma.user.findUnique({

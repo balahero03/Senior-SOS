@@ -11,6 +11,7 @@ const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
 const { createNotification } = require('../services/notificationService');
 const graph = require('../services/graphService');
+const referenceCache = require('../services/referenceCache');
 
 /**
  * GET /api/admin/stats
@@ -403,6 +404,8 @@ const createDepartment = asyncHandler(async (req, res) => {
     return { department, auditLog };
   });
 
+  await referenceCache.invalidateDepartments();
+
   res.status(201).json({
     success: true,
     data: {
@@ -460,6 +463,8 @@ const createCompany = asyncHandler(async (req, res) => {
 
     return { company, auditLog };
   });
+
+  await referenceCache.invalidateCompanies();
 
   res.status(201).json({
     success: true,
