@@ -1,0 +1,10 @@
+# Files that run inside Linux containers must keep LF line endings. A CRLF in a
+# shell script or an nginx config breaks it there, and git on Windows would
+# otherwise convert them on checkout. Limited to container and cluster files so
+# existing files are not re-normalised.
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+*.template text eol=lf
+docker-compose.app.yml text eol=lf
+k8s/** text eol=lf

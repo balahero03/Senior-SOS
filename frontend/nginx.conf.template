@@ -1,0 +1,71 @@
+# Filled in by the nginx image at start-up (see the Dockerfile).
+# Only ${NGINX_LOCAL_RESOLVERS} and ${BACKEND_HOST} are substituted; nginx's own
+# $variables are left alone.
+
+# Resolve the backend by name when a request arrives, not once at start-up, so
+# nginx still starts if the backend is not up yet and follows it when pods move.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    set $backend "${BACKEND_HOST}";
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # REST API
+    location /api/ {
+        proxy_pass http://$backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Socket.IO: WebSocket upgrade, plus the long-polling fallback
+    location /socket.io/ {
+        proxy_pass http://$backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # Backend health, handy for probes and quick checks
+    location = /health {
+        proxy_pass http://$backend;
+        proxy_set_header Host $host;
+    }
+
+    # Hashed build assets never change, so they can be cached for a year
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # Single-page app: unknown paths serve index.html and React Router takes over.
+    # index.html itself must never be cached, or a new deploy would not show up.
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+}

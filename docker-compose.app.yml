@@ -1,0 +1,59 @@
+# docker-compose.app.yml
+# Runs the built app images (backend + frontend + its own Redis) for a quick
+# check before Kubernetes. Separate from docker-compose.yml, which only starts
+# the local development databases, and it uses its own project name, containers
+# and ports, so the normal `run.ps1` workflow is not affected.
+#
+#   docker compose -f docker-compose.app.yml up -d --build
+#   open http://localhost:8081
+#   docker compose -f docker-compose.app.yml down
+#
+# The cloud databases (Neon Postgres, Atlas MongoDB, Neo4j Aura) are reached with
+# the connection settings in backend/.env, exactly as `npm run dev` does. This
+# file never starts, migrates or seeds a database.
+
+name: seniorsos-app
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Cache, rate-limit counters and presence only; every key has a TTL.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    image: seniorsos-backend:local
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Values that differ inside the containers; these win over backend/.env.
+      NODE_ENV: production
+      PORT: "5000"
+      REDIS_URL: redis://redis:6379
+      CLIENT_ORIGIN: http://localhost:8081
+      TRUST_PROXY: "1"
+      API_TRANSCRIPT_LOG: "false"
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      # Direct access for health checks; the app itself is used through the frontend.
+      - "127.0.0.1:5001:5000"
+
+  frontend:
+    build: ./frontend
+    image: seniorsos-frontend:local
+    restart: unless-stopped
+    environment:
+      BACKEND_HOST: backend:5000
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:8081:80"

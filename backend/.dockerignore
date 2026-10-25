@@ -1,0 +1,12 @@
+# Keep secrets and local state out of the image and the build context.
+.env
+.env.*
+!.env.example
+node_modules
+logs
+*.log
+npm-debug.log*
+Dockerfile
+.dockerignore
+# Tests, one-off scripts and seed data are not needed at runtime.
+scripts
