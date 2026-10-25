@@ -30,8 +30,6 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
 
   // Skills
   const [skills, setSkills] = useState([]);
-  const [newSkillName, setNewSkillName] = useState('');
-  const [newSkillProficiency, setNewSkillProficiency] = useState('INTERMEDIATE');
 
   // Dropdown data
   const [departments, setDepartments] = useState([]);
@@ -77,30 +75,6 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
   }, [isOpen, profile, isAlumni]);
 
   if (!isOpen) return null;
-
-  const handleAddSkill = (e) => {
-    if (e) e.preventDefault();
-    const trimmed = newSkillName.trim();
-    if (!trimmed) return;
-
-    // Check duplicate
-    if (skills.some((s) => (s.name || s.skillName).toLowerCase() === trimmed.toLowerCase())) {
-      setNewSkillName('');
-      return;
-    }
-
-    setSkills([
-      ...skills,
-      {
-        skillId: undefined,
-        name: trimmed,
-        skillName: trimmed,
-        proficiency: newSkillProficiency,
-      },
-    ]);
-    setNewSkillName('');
-    setNewSkillProficiency('INTERMEDIATE');
-  };
 
   const handleRemoveSkill = (index) => {
     setSkills(skills.filter((_, i) => i !== index));
@@ -348,48 +322,12 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
               )}
             </div>
 
-            {/* Add Skill Row — alumni pick from the curated list; students keep free text for now */}
-            {isAlumni ? (
-              <SkillPicker
-                selectedIds={skills.map((s) => s.skillId)}
-                proficiencyOptions={PROFICIENCY_OPTIONS}
-                onAdd={(skill) => setSkills((prev) => [...prev, { ...skill, skillName: skill.name }])}
-              />
-            ) : (
-            <div className="flex flex-col sm:flex-row gap-2 pt-1">
-              <input
-                type="text"
-                value={newSkillName}
-                onChange={(e) => setNewSkillName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddSkill();
-                  }
-                }}
-                placeholder="Skill name (e.g. React, Python, System Design)"
-                className="flex-1 px-3.5 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-[#0a66c2] focus:ring-1 focus:ring-[#0a66c2] text-slate-900"
-              />
-              <select
-                value={newSkillProficiency}
-                onChange={(e) => setNewSkillProficiency(e.target.value)}
-                className="px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-[#0a66c2] bg-white font-semibold text-slate-700"
-              >
-                {PROFICIENCY_OPTIONS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={handleAddSkill}
-                className="btn-linkedin-secondary text-xs py-2 px-4 shrink-0 font-bold"
-              >
-                + Add Skill
-              </button>
-            </div>
-            )}
+            {/* Add Skill Row — pick from the curated skills list */}
+            <SkillPicker
+              selectedIds={skills.map((s) => s.skillId)}
+              proficiencyOptions={PROFICIENCY_OPTIONS}
+              onAdd={(skill) => setSkills((prev) => [...prev, { ...skill, skillName: skill.name }])}
+            />
           </div>
         </form>
 
