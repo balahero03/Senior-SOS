@@ -24,3 +24,11 @@ export const getCompanies = (q) =>
 
 export const getSkills = (q) =>
   api.get('/skills', { params: q ? { q } : {} }).then((r) => r.data.data.skills);
+
+/**
+ * "People like you": students see students, alumni see alumni and/or students.
+ * @param {{ limit?: number, role?: 'ALL'|'ALUMNI'|'STUDENT', interest?: string,
+ *           skillId?: string, departmentId?: string, companyId?: string }} params
+ */
+export const getPeerMatches = (params = {}) =>
+  api.get('/match/peers', { params }).then((r) => r.data.data);

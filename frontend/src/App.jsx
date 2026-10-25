@@ -10,6 +10,7 @@ import MessagesPage from './features/messages/pages/MessagesPage';
 import ProfilePage from './features/profile/pages/ProfilePage';
 import DiscoverPage from './features/discover/pages/DiscoverPage';
 import BestFitPage from './features/discover/pages/BestFitPage';
+import PeersPage from './features/discover/pages/PeersPage';
 import NetworkPage from './features/networking/pages/NetworkPage';
 import NetworkGraphPage from './features/networking/pages/NetworkGraphPage';
 import NotificationsPage from './features/notifications/pages/NotificationsPage';
@@ -55,6 +56,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BestFitPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/connect"
+          element={
+            <ProtectedRoute>
+              <PeersPage />
             </ProtectedRoute>
           }
         />

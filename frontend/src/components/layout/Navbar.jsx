@@ -48,12 +48,24 @@ const studentNavItems = [
   },
 ];
 
+// Peer recommendations: students meet students, alumni meet alumni and students.
+const peerNavItem = {
+  to: '/connect',
+  label: 'People Like You',
+  icon: (
+    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm9-5h-2V7h-2V5h2V3h2v2h2v2h-2v2z" />
+    </svg>
+  ),
+};
+
 /**
  * Nav entries for the signed-in role. Admins are not handled here: they get
  * a separate console header with its own links.
  */
 function navItemsFor(role) {
-  if (role === 'STUDENT') return [...baseNavItems, ...studentNavItems];
+  if (role === 'STUDENT') return [...baseNavItems, ...studentNavItems, peerNavItem];
+  if (role === 'ALUMNI') return [...baseNavItems, peerNavItem];
   return baseNavItems;
 }
 
