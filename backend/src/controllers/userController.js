@@ -7,6 +7,9 @@
 const { prisma } = require('../database/postgres');
 const asyncHandler = require('../shared/utils/asyncHandler');
 const AppError = require('../shared/errors/AppError');
+const { searchSkills } = require('../shared/utils/skillSearch');
+
+const PROFICIENCY_LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'];
 
 const PROFILE_PRIVATE_MESSAGE = 'This profile is only visible to connections';
 
@@ -71,25 +74,15 @@ const getCompanies = asyncHandler(async (req, res) => {
  * Returns skills (id, name). Supports search query `?q=` filtering by name.
  */
 const getSkills = asyncHandler(async (req, res) => {
-  const { q } = req.query;
-  const where = {};
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
 
-  if (q && q.trim()) {
-    const searchTerm = q.trim();
-    where.name = { contains: searchTerm, mode: 'insensitive' };
-  }
-
-  const skills = await prisma.skill.findMany({
-    where,
-    select: {
-      id: true,
-      name: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
-    take: 50,
+  const allSkills = await prisma.skill.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
   });
+
+  // Ranked, alias- and punctuation-tolerant search ("python3", "nodejs", "k8s").
+  const skills = q ? searchSkills(allSkills, q, 20) : allSkills.slice(0, 50);
 
   res.json({
     success: true,
@@ -379,24 +372,40 @@ const updateProfile = asyncHandler(async (req, res) => {
 
     // 4. Synchronize user_skills
     if (Array.isArray(skills)) {
-      // Upsert all skill records in `skills`
+      // Skills come from the curated `skills` table only: resolve by id (or exact name)
+      // and never create new skill records from user input.
       const resolvedSkillEntries = [];
+      const seenSkillIds = new Set();
 
       for (const item of skills) {
+        const skillId = typeof item === 'object' && typeof item?.skillId === 'string' ? item.skillId : null;
         const rawName = typeof item === 'string' ? item : (item?.name || item?.skillName);
-        if (!rawName || !rawName.trim()) continue;
+        const cleanName = typeof rawName === 'string' ? rawName.trim() : '';
+        if (!skillId && !cleanName) continue;
 
-        const cleanSkillName = rawName.trim();
-        const skillRecord = await tx.skill.upsert({
-          where: { name: cleanSkillName },
-          update: {},
-          create: { name: cleanSkillName },
-        });
+        const skillRecord = skillId
+          ? await tx.skill.findUnique({ where: { id: skillId } }).catch(() => null)
+          : await tx.skill.findFirst({ where: { name: { equals: cleanName, mode: 'insensitive' } } });
+
+        if (!skillRecord) {
+          throw new AppError(
+            `"${cleanName || skillId}" is not in the skills list. Please search and pick a skill from the list.`,
+            400,
+            'SKILL_NOT_FOUND'
+          );
+        }
+
+        if (seenSkillIds.has(skillRecord.id)) continue;
+        seenSkillIds.add(skillRecord.id);
+
+        const level = typeof item === 'object' && typeof item.proficiency === 'string'
+          ? item.proficiency.trim().toUpperCase()
+          : '';
 
         resolvedSkillEntries.push({
           userId,
           skillId: skillRecord.id,
-          proficiency: (typeof item === 'object' && item.proficiency) ? item.proficiency.trim() : null,
+          proficiency: PROFICIENCY_LEVELS.includes(level) ? level : 'INTERMEDIATE',
         });
       }
 

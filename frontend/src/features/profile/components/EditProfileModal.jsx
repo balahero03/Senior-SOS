@@ -1,7 +1,8 @@
 // frontend/src/features/profile/components/EditProfileModal.jsx
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../../stores/authStore';
-import { updateProfile, getDepartments, getSkills } from '../api';
+import { updateProfile, getDepartments } from '../api';
+import SkillPicker from './SkillPicker';
 
 const PROFICIENCY_OPTIONS = [
   { value: 'BEGINNER', label: 'Beginner' },
@@ -322,7 +323,7 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
             <div className="flex flex-wrap gap-2 min-h-[44px] p-3 rounded-xl bg-slate-50 border border-slate-200">
               {skills.length === 0 ? (
                 <span className="text-xs text-slate-400">
-                  No skills added yet. Type a skill name and click "+ Add Skill" below.
+                  No skills added yet. Search for a skill below and click "+ Add Skill".
                 </span>
               ) : (
                 skills.map((s, idx) => (
@@ -347,7 +348,14 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
               )}
             </div>
 
-            {/* Add Skill Row */}
+            {/* Add Skill Row — alumni pick from the curated list; students keep free text for now */}
+            {isAlumni ? (
+              <SkillPicker
+                selectedIds={skills.map((s) => s.skillId)}
+                proficiencyOptions={PROFICIENCY_OPTIONS}
+                onAdd={(skill) => setSkills((prev) => [...prev, { ...skill, skillName: skill.name }])}
+              />
+            ) : (
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <input
                 type="text"
@@ -381,6 +389,7 @@ export default function EditProfileModal({ profile, isOpen, onClose, onProfileUp
                 + Add Skill
               </button>
             </div>
+            )}
           </div>
         </form>
 
