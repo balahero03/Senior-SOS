@@ -33,6 +33,7 @@ const adminRoutes = require('../routes/adminRoutes');
 const settingsRoutes = require('../routes/settingsRoutes');
 const graphRoutes = require('../routes/graphRoutes');
 const matchRoutes = require('../routes/matchRoutes');
+const presenceRoutes = require('../routes/presenceRoutes');
 const userController = require('../controllers/userController');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { getRedisStatus } = require('../database/redis');
@@ -124,6 +125,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/graph', graphRoutes);
 app.use('/api/match', matchRoutes);
+app.use('/api/presence', presenceRoutes);
 app.use('/api', messagesRoutes);       // /api/conversations, /api/messages
 
 // ─── 404 for unmatched API routes ────────────────────────────────────────────

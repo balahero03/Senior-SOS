@@ -5,6 +5,7 @@ import useAuthStore from '../../../stores/authStore';
 import Navbar from '../../../components/layout/Navbar';
 import { getProfile, sendConnectionRequest } from '../api';
 import EditProfileModal from '../components/EditProfileModal';
+import usePresence, { describePresence } from '../../../hooks/usePresence';
 
 export default function ProfilePage() {
   const { userId } = useParams();
@@ -61,6 +62,11 @@ export default function ProfilePage() {
       setIsConnecting(false);
     }
   };
+
+  // Online status is only shared with connections; for anyone else the API
+  // returns nothing and no indicator is shown.
+  const presence = usePresence(profile?.connectionStatus === 'CONNECTED' ? [profile.id] : []);
+  const presenceText = describePresence(presence[profile?.id]);
 
   const displayName = profile?.name || currentUser?.name || 'Member Profile';
   const initials = displayName.trim().charAt(0).toUpperCase() || 'U';
@@ -176,6 +182,12 @@ export default function ProfilePage() {
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                       {displayName}
                     </h1>
+                    {presenceText && (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                        {presence[profile.id]?.online && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                        {presenceText}
+                      </span>
+                    )}
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold ${
                         isAlumni

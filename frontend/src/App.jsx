@@ -17,6 +17,7 @@ import NotificationsPage from './features/notifications/pages/NotificationsPage'
 import AdminDashboardPage from './features/admin/pages/AdminDashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import { connectSocket, disconnectSocket } from './services/socket';
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
@@ -25,6 +26,16 @@ export default function App() {
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // Stay connected to the realtime server while signed in, so a user shows as
+  // online on every page and not only while the Messages page is open.
+  useEffect(() => {
+    if (user) {
+      connectSocket();
+      return () => disconnectSocket();
+    }
+    return undefined;
+  }, [user?.id]);
 
   return (
     <BrowserRouter>

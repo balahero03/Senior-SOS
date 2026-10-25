@@ -606,6 +606,15 @@ Planned uses:
 - Rate limiting
 - Socket.io Pub/Sub across backend replicas
 
+Implemented in this project (all optional: an empty `REDIS_URL` disables Redis and the app falls back gracefully):
+
+- **Rate limiting** on login, password reset, registration, token refresh and connection requests (`RATE_LIMIT_DISABLED`, `TRUST_PROXY`). Counters are shared across replicas through Redis and fall back to per-process counters without it.
+- **Reference-data cache** for skills, departments and companies (5-minute TTL, cleared when an admin or a registration creates one).
+- **Recommendation cache** for `/api/match/alumni` and `/api/match/peers` (3-minute TTL). Entries are per viewer; a user's own actions clear their entries, and privacy or admin changes clear everyone's.
+- **Socket.IO Redis adapter** so events reach users connected to any replica.
+- **Presence** (`GET /api/presence`, `presence:update` socket event): online status and last-seen, shared only with a user's connections. Each socket refreshes its entry every 20 s, so users of a crashed replica expire after 60 s.
+- Local Docker service on port 6380 (`docker-compose.yml`); Kubernetes manifest in `k8s/redis/redis.yaml`.
+
 Cross-replica example: Bala is connected to Backend A and Arun to Backend B; Bala sends a message; Redis Pub/Sub distributes the event to Backend B so Arun receives it. Redis makes Socket.io events work across multiple backend replicas.
 
 ### One shared identity

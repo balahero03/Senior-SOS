@@ -84,6 +84,23 @@ async function connectRedis() {
   }
 }
 
+/**
+ * A separate connection WITHOUT the key prefix, for Pub/Sub. ioredis prefixes
+ * PUBLISH but not SUBSCRIBE, so a prefixed client would publish and listen on
+ * different channel names. Callers own the returned client and must close it.
+ * Returns null when Redis is not configured.
+ */
+function createRedisConnection() {
+  if (!config.redis.enabled) return null;
+  const connection = new Redis(config.redis.url, {
+    connectTimeout: 3_000,
+    retryStrategy: (attempt) => Math.min(attempt * 500, 15_000),
+  });
+  // An 'error' event with no listener is logged as unhandled by ioredis.
+  connection.on('error', () => {});
+  return connection;
+}
+
 async function disconnectRedis() {
   if (!client) return;
   const closing = client;
@@ -171,6 +188,7 @@ module.exports = {
   isRedisEnabled,
   getRedisStatus,
   getRedisClient,
+  createRedisConnection,
   cacheGet,
   cacheSet,
   cacheDel,

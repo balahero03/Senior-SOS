@@ -1,0 +1,72 @@
+# k8s/redis/redis.yaml
+# Redis for caching, rate limiting, presence and Socket.IO scaling.
+#
+# Redis is an accelerator only: PostgreSQL, MongoDB and Neo4j hold the data, and
+# the backend keeps working (without caching) if Redis is unavailable. So this
+# is a plain Deployment with no volume: losing the pod loses only cache entries,
+# rate-limit counters and presence, all of which rebuild themselves.
+#
+# Backend configuration: REDIS_URL=redis://redis:6379 (the Service name below).
+# Run more than one backend replica and set TRUST_PROXY=1 behind the ingress.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          # No persistence; every key has a TTL, so evict only keys that have one.
+          args:
+            - redis-server
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+            - --maxmemory
+            - 128mb
+            - --maxmemory-policy
+            - volatile-lru
+          ports:
+            - containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379

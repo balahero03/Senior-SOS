@@ -18,7 +18,7 @@ const { connectPostgres, disconnectPostgres } = require('./database/postgres');
 const { connectMongoDB, disconnectMongoDB } = require('./database/mongodb');
 const { connectNeo4j, disconnectNeo4j } = require('./database/neo4j');
 const { connectRedis, disconnectRedis } = require('./database/redis');
-const { initSocket } = require('./realtime/socket');
+const { initSocket, closeSocket } = require('./realtime/socket');
 
 async function startServer() {
   // Connect both databases before accepting requests
@@ -44,6 +44,7 @@ async function startServer() {
     console.log(`\n[server] Received ${signal}. Shutting down gracefully...`);
 
     server.close(async () => {
+      await closeSocket();
       await disconnectPostgres();
       await disconnectMongoDB();
       await disconnectNeo4j();

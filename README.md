@@ -179,6 +179,6 @@ Right now, students can search for alumni. With **Neo4j**, SeniorSOS will answer
 To demonstrate production-grade deployment skills, we are building a Kubernetes setup using **Kind / Minikube**:
 - **Stateless Application Tier:** Deploying frontend and backend as scalable K8s `Deployments` behind an Ingress controller.
 - **Stateful Database Tier:** Running PostgreSQL, MongoDB, and Neo4j as K8s `StatefulSets` backed by `PersistentVolumeClaims (PVCs)`.
-- **Redis Pub/Sub Scaling:** Using a Redis instance so that multiple backend pod replicas can broadcast real-time Socket.IO chat messages to each other seamlessly.
+- **Redis Pub/Sub Scaling:** Implemented. Redis (optional, `REDIS_URL`) powers the Socket.IO adapter so multiple backend replicas can broadcast real-time messages to each other, plus presence, rate limiting and caching. See `project.md`.
 
 

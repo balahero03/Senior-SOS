@@ -7,9 +7,13 @@
 
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const { createAdapter } = require('@socket.io/redis-adapter');
 const config = require('../config');
+const { createRedisConnection, isRedisEnabled } = require('../database/redis');
+const presence = require('../services/presenceService');
 
 let io = null;
+let adapterClients = [];
 
 /**
  * Initialize Socket.IO server bound to HTTP server instance.
@@ -22,6 +26,23 @@ function initSocket(httpServer) {
       credentials: true,
     },
   });
+
+  // With several backend replicas, a user's socket may live on a different
+  // replica than the one handling the request that emits to them. The Redis
+  // adapter relays events between replicas so emitToUser still reaches them.
+  // Without Redis this stays single-instance, as before.
+  if (isRedisEnabled()) {
+    const pub = createRedisConnection();
+    const sub = pub && pub.duplicate();
+    if (pub && sub) {
+      sub.on('error', () => {});
+      adapterClients = [pub, sub];
+      io.adapter(createAdapter(pub, sub, { key: 'sos:socket.io' }));
+      console.log('🔌 [socket] Redis adapter enabled (multi-instance realtime)');
+    }
+  } else {
+    console.log('🔌 [socket] Single-instance realtime (no Redis adapter)');
+  }
 
   // JWT authentication middleware for WebSocket connections
   io.use((socket, next) => {
@@ -62,12 +83,56 @@ function initSocket(httpServer) {
     // Join personal room for target user notifications/messages
     socket.join(`user:${userId}`);
 
+    // Presence: track this socket, keep it alive, and tell the user's
+    // connections when they first come online or fully go offline.
+    presence.connect(userId, socket.id)
+      .then((cameOnline) => { if (cameOnline) announcePresence(userId, true); })
+      .catch((err) => console.error('[presence] connect failed:', err.message));
+
+    const heartbeat = setInterval(() => {
+      presence.heartbeat(userId, socket.id).catch(() => {});
+    }, presence.HEARTBEAT_MS);
+
     socket.on('disconnect', () => {
+      clearInterval(heartbeat);
       console.log(`🔌 Socket disconnected: User ${userId}`);
+      presence.disconnect(userId, socket.id)
+        .then((wentOffline) => { if (wentOffline) announcePresence(userId, false); })
+        .catch((err) => console.error('[presence] disconnect failed:', err.message));
     });
   });
 
   return io;
+}
+
+/**
+ * Pushes a presence change to the user's connections only. Delivered through
+ * the same rooms (and Redis adapter) as messages, so it works across replicas.
+ */
+async function announcePresence(userId, online) {
+  if (!io) return;
+  try {
+    const connectionIds = await presence.getConnectionIds(userId);
+    if (connectionIds.length === 0) return;
+    io.to(connectionIds.map((id) => `user:${id}`)).emit('presence:update', {
+      userId,
+      online,
+      lastSeen: online ? null : Date.now(),
+    });
+  } catch (err) {
+    console.error('[presence] announce failed:', err.message);
+  }
+}
+
+/** Closes the adapter's Redis connections (graceful shutdown). */
+async function closeSocket() {
+  const clients = adapterClients;
+  adapterClients = [];
+  await Promise.all(clients.map((c) => c.quit().catch(() => c.disconnect())));
+  if (io) {
+    await new Promise((resolve) => io.close(resolve));
+    io = null;
+  }
 }
 
 /**
@@ -113,6 +178,7 @@ function emitToUser(userId, event, data) {
 
 module.exports = {
   initSocket,
+  closeSocket,
   getIO,
   emitToUser,
 };

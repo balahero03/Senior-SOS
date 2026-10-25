@@ -12,7 +12,9 @@ import {
   sendMessage,
   getUsers,
 } from '../api';
-import { connectSocket, disconnectSocket, getSocket } from '../../../services/socket';
+import { connectSocket, getSocket } from '../../../services/socket';
+import usePresence, { describePresence } from '../../../hooks/usePresence';
+import PresenceDot from '../../../components/common/PresenceDot';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ function Avatar({ name, size = 'md' }) {
 
 // ─── Conversation List Item ───────────────────────────────────────────────────
 
-function ConversationItem({ conv, isActive, currentUserId, onClick }) {
+function ConversationItem({ conv, isActive, currentUserId, onClick, online }) {
   const other = conv.otherUser || { name: 'Unknown', role: 'STUDENT' };
   return (
     <button
@@ -54,7 +56,10 @@ function ConversationItem({ conv, isActive, currentUserId, onClick }) {
           : 'hover:bg-slate-100 border-l-4 border-l-transparent'
       }`}
     >
-      <Avatar name={other.name} />
+      <div className="relative flex-shrink-0">
+        <Avatar name={other.name} />
+        <PresenceDot online={online} className="absolute bottom-0 right-0" />
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <p className={`text-xs font-bold truncate ${isActive ? 'text-[#0a66c2]' : 'text-slate-900'}`}>{other.name}</p>
@@ -270,6 +275,7 @@ function NewConversationModal({ onStart, onClose }) {
 export default function MessagesPage() {
   const { user } = useAuthStore();
   const [conversations, setConversations] = useState([]);
+  const presence = usePresence(conversations.map((c) => c.otherUser?.id));
   const [activeConv, setActiveConv] = useState(null);
   const [messages, setMessages] = useState([]);
   const [msgInput, setMsgInput] = useState('');
@@ -307,11 +313,6 @@ export default function MessagesPage() {
       socket.off('new_message', handleNewMessage);
     };
   }, [activeConv]);
-
-  // Disconnect socket on unmount
-  useEffect(() => {
-    return () => disconnectSocket();
-  }, []);
 
   // ── Load conversations ───────────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -443,6 +444,7 @@ export default function MessagesPage() {
                   isActive={activeConv?._id === conv._id}
                   currentUserId={user?.id}
                   onClick={handleSelectConversation}
+                  online={presence[conv.otherUser?.id]?.online}
                 />
               ))
             )}
@@ -455,7 +457,10 @@ export default function MessagesPage() {
             <>
               {/* Header */}
               <div className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center gap-3 flex-shrink-0">
-                <Avatar name={otherUser?.name} />
+                <div className="relative flex-shrink-0">
+                  <Avatar name={otherUser?.name} />
+                  <PresenceDot online={presence[otherUser?.id]?.online} className="absolute bottom-0 right-0" />
+                </div>
                 <div>
                   <p className="font-semibold text-slate-900 text-sm">{otherUser?.name || 'Unknown'}</p>
                   <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${roleColor(otherUser?.role)}`}>
@@ -463,8 +468,12 @@ export default function MessagesPage() {
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs text-slate-500">Realtime</span>
+                  {presence[otherUser?.id]?.online && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  )}
+                  <span className="text-xs text-slate-500">
+                    {describePresence(presence[otherUser?.id])}
+                  </span>
                 </div>
               </div>
 

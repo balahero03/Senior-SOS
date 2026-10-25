@@ -16,7 +16,8 @@ let socket = null;
  * If already connected, returns the existing connection.
  */
 export function connectSocket() {
-  if (socket && socket.connected) return socket;
+  // One socket per tab, even while it is still connecting.
+  if (socket) return socket;
 
   socket = io(BACKEND_URL, {
     withCredentials: true,     // send httpOnly cookies
